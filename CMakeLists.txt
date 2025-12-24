@@ -23,6 +23,12 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(PlantMap
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
+        planttraits.h planttraits.cpp
+        plant.h plant.cpp
+        traitregistry.h traitregistry.cpp
+        plantmanager.h plantmanager.cpp
+        showplant.h showplant.cpp showplant.ui
+        searchplant.h searchplant.cpp searchplant.ui
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET PlantMap APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

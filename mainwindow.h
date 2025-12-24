@@ -1,6 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-
+#include "searchplant.h"
+#include "showplant.h"
+#include <QCloseEvent>
 #include <QMainWindow>
 
 QT_BEGIN_NAMESPACE
@@ -17,7 +19,11 @@ public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
+    // void closeEvent(QCloseEvent *event) override;
+
 private:
     Ui::MainWindow *ui;
+    searchPlant *searchPage;
+    showPlant *showPage;
 };
 #endif // MAINWINDOW_H
