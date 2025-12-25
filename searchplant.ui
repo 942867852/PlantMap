@@ -16,14 +16,24 @@
   <widget class="QLabel" name="label">
    <property name="geometry">
     <rect>
-     <x>140</x>
-     <y>60</y>
+     <x>20</x>
+     <y>10</y>
      <width>69</width>
      <height>19</height>
     </rect>
    </property>
    <property name="text">
     <string>查找植物</string>
+   </property>
+  </widget>
+  <widget class="QTextEdit" name="textEdit">
+   <property name="geometry">
+    <rect>
+     <x>160</x>
+     <y>20</y>
+     <width>104</width>
+     <height>75</height>
+    </rect>
    </property>
   </widget>
  </widget>

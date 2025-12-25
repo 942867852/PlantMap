@@ -32,13 +32,6 @@ Plant Plant::fromJson(const QJsonObject& obj) {
     return plant;
 }
 
-// QJsonArray plantsToJson(const QList<Plant>& plants) {
-//     QJsonArray array;
-//     for (const auto& p : plants) {
-//         array.append(p.toJson());
-//     }
-//     return array;
-// }
 
 QJsonArray plantsToJson(const QList<Plant>& plants) {
     QJsonArray array;

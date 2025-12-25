@@ -11,6 +11,7 @@ class TraitRegistry : public QObject
     Q_OBJECT
 
 public:
+    //单例函数入口
     static TraitRegistry& instance();
     QList<TraitItem> getTraitsByCategory(TraitCategory cat) const;
     QMap<TraitCategory, QList<TraitItem>> getAllTraitsGroupedByCategory() const;

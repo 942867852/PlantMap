@@ -9,7 +9,7 @@
 #include <QMetaType>
 #include <QJsonObject>
 
-
+//植物习性属性枚举
 enum class TraitCategory {
     Light,      // 光照
     Water,      // 水分
@@ -21,6 +21,12 @@ enum class TraitCategory {
 QString categoryToString(TraitCategory cat);
 TraitCategory stringToCategory(const QString& str);
 
+/*
+植物习性结构体
+1.命名
+2.习性枚举
+3.描述
+*/
 struct TraitItem {
     QString name;
     TraitCategory category;

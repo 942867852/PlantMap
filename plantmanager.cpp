@@ -10,6 +10,14 @@ PlantManager::PlantManager(QObject *parent)
 
 void PlantManager::addPlant(const Plant &plant)
 {
+    for (auto& p : m_plants)
+    {
+        if (p.getName() == plant.getName())
+        {
+            qDebug() << "重复添加";
+            return;
+        }
+    }
     m_plants.append(plant);
     emit plantsChanged();
 }
