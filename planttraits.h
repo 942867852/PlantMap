@@ -9,7 +9,7 @@
 #include <QMetaType>
 #include <QJsonObject>
 
-//植物习性属性枚举
+//植物习性大类枚举
 enum class TraitCategory {
     Light,      // 光照
     Water,      // 水分
@@ -22,7 +22,7 @@ QString categoryToString(TraitCategory cat);
 TraitCategory stringToCategory(const QString& str);
 
 /*
-植物习性结构体
+植物具体习性
 1.命名
 2.习性枚举
 3.描述
@@ -54,6 +54,9 @@ public:
 
     QPair<int, int> temperatureRange{0, 0};
     bool isSuitableTemperature(int temp) const;
+
+    QPair<float, float> pH{6,8};
+    bool isSuitablePH(float ph) const;
 
     QSet<TraitItem> traits;
     void clear();

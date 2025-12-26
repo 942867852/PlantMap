@@ -8,15 +8,15 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    searchPage = new searchPlant();
-    showPage = new showPlant();
+    addPage = new AddPlantPage();
+    searchPage = new SearchPlantPage();
 
     connect(ui->insertPlantBtn, &QPushButton::clicked, this, [this](){
         searchPage->show();
     });
 
     connect(ui->searchPlantBtn, &QPushButton::clicked, this, [this](){
-        showPage->show();
+        addPage->show();
     });
 
 
@@ -29,8 +29,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
         searchPage->close(); // 关闭窗口（会触发WA_DeleteOnClose释放内存）
     }
     // 2. 同理关闭showPage
-    if (showPage && showPage->isVisible()) {
-        showPage->close();
+    if (addPage && addPage->isVisible()) {
+        addPage->close();
     }
     // 3. 允许主窗口正常关闭
     event->accept();
@@ -41,5 +41,5 @@ MainWindow::~MainWindow()
 {
     delete ui;
     if (searchPage) delete searchPage;
-    if (showPage) delete showPage;
+    if (addPage) delete addPage;
 }

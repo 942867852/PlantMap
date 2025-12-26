@@ -71,6 +71,11 @@ bool PlantProperties::isSuitableTemperature(int temp) const {
     return temp >= temperatureRange.first && temp <= temperatureRange.second;
 }
 
+bool PlantProperties::isSuitablePH(float ph) const
+{
+    return ph >= pH.first && ph <= pH.second;
+}
+
 void PlantProperties::clear() {
     bloomStart = bloomEnd = QDate();
     lightRange = {Low, Low};

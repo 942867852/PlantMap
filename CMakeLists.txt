@@ -27,8 +27,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         plant.h plant.cpp
         traitregistry.h traitregistry.cpp
         plantmanager.h plantmanager.cpp
-        showplant.h showplant.cpp showplant.ui
-        searchplant.h searchplant.cpp searchplant.ui
+        addplantpage.h addplantpage.cpp addplantpage.ui
+        searchplantpage.h searchplantpage.cpp searchplantpage.ui
+
+
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET PlantMap APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

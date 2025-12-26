@@ -105,17 +105,17 @@ build CMakeFiles/PlantMap.dir/plantmanager.cpp.obj: CXX_COMPILER__PlantMap_unsca
   OBJECT_DIR = CMakeFiles\PlantMap.dir
   OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
 
-build CMakeFiles/PlantMap.dir/showplant.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/showplant.cpp || cmake_object_order_depends_target_PlantMap
+build CMakeFiles/PlantMap.dir/addplantpage.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/addplantpage.cpp || cmake_object_order_depends_target_PlantMap
   DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\showplant.cpp.obj.d
+  DEP_FILE = CMakeFiles\PlantMap.dir\addplantpage.cpp.obj.d
   FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
   INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
   OBJECT_DIR = CMakeFiles\PlantMap.dir
   OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
 
-build CMakeFiles/PlantMap.dir/searchplant.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/searchplant.cpp || cmake_object_order_depends_target_PlantMap
+build CMakeFiles/PlantMap.dir/searchplantpage.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/searchplantpage.cpp || cmake_object_order_depends_target_PlantMap
   DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\searchplant.cpp.obj.d
+  DEP_FILE = CMakeFiles\PlantMap.dir\searchplantpage.cpp.obj.d
   FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
   INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
   OBJECT_DIR = CMakeFiles\PlantMap.dir
@@ -129,7 +129,7 @@ build CMakeFiles/PlantMap.dir/searchplant.cpp.obj: CXX_COMPILER__PlantMap_unscan
 #############################################
 # Link the executable PlantMap.exe
 
-build PlantMap.exe: CXX_EXECUTABLE_LINKER__PlantMap_Debug CMakeFiles/PlantMap.dir/PlantMap_autogen/mocs_compilation.cpp.obj CMakeFiles/PlantMap.dir/main.cpp.obj CMakeFiles/PlantMap.dir/mainwindow.cpp.obj CMakeFiles/PlantMap.dir/planttraits.cpp.obj CMakeFiles/PlantMap.dir/plant.cpp.obj CMakeFiles/PlantMap.dir/traitregistry.cpp.obj CMakeFiles/PlantMap.dir/plantmanager.cpp.obj CMakeFiles/PlantMap.dir/showplant.cpp.obj CMakeFiles/PlantMap.dir/searchplant.cpp.obj | D$:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Core.a D$:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a || PlantMap_autogen PlantMap_autogen_timestamp_deps
+build PlantMap.exe: CXX_EXECUTABLE_LINKER__PlantMap_Debug CMakeFiles/PlantMap.dir/PlantMap_autogen/mocs_compilation.cpp.obj CMakeFiles/PlantMap.dir/main.cpp.obj CMakeFiles/PlantMap.dir/mainwindow.cpp.obj CMakeFiles/PlantMap.dir/planttraits.cpp.obj CMakeFiles/PlantMap.dir/plant.cpp.obj CMakeFiles/PlantMap.dir/traitregistry.cpp.obj CMakeFiles/PlantMap.dir/plantmanager.cpp.obj CMakeFiles/PlantMap.dir/addplantpage.cpp.obj CMakeFiles/PlantMap.dir/searchplantpage.cpp.obj | D$:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Core.a D$:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a || PlantMap_autogen PlantMap_autogen_timestamp_deps
   FLAGS = -DQT_QML_DEBUG -g
   LINK_FLAGS = -mwindows
   LINK_LIBRARIES = D:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Core.a  -lmpr  -luserenv  -lmingw32  D:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a  -lshell32  -ld3d11  -ldxgi  -ldxguid  -ld3d12  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
@@ -216,7 +216,7 @@ build PlantMap_autogen_timestamp_deps: phony
 #############################################
 # Utility command for PlantMap_autogen
 
-build PlantMap_autogen: phony CMakeFiles/PlantMap_autogen PlantMap_autogen/include/ui_mainwindow.h PlantMap_autogen/include/ui_showplant.h PlantMap_autogen/include/ui_searchplant.h PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp PlantMap_autogen_timestamp_deps
+build PlantMap_autogen: phony CMakeFiles/PlantMap_autogen PlantMap_autogen/include/ui_mainwindow.h PlantMap_autogen/include/ui_addplantpage.h PlantMap_autogen/include/ui_searchplantpage.h PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp PlantMap_autogen_timestamp_deps
 
 
 #############################################
@@ -233,7 +233,7 @@ build PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp | ${cmake
 #############################################
 # Phony custom command for CMakeFiles\PlantMap_autogen
 
-build CMakeFiles/PlantMap_autogen PlantMap_autogen/include/ui_mainwindow.h PlantMap_autogen/include/ui_showplant.h PlantMap_autogen/include/ui_searchplant.h | ${cmake_ninja_workdir}CMakeFiles/PlantMap_autogen ${cmake_ninja_workdir}PlantMap_autogen/include/ui_mainwindow.h ${cmake_ninja_workdir}PlantMap_autogen/include/ui_showplant.h ${cmake_ninja_workdir}PlantMap_autogen/include/ui_searchplant.h: phony PlantMap_autogen/timestamp || PlantMap_autogen_timestamp_deps
+build CMakeFiles/PlantMap_autogen PlantMap_autogen/include/ui_mainwindow.h PlantMap_autogen/include/ui_addplantpage.h PlantMap_autogen/include/ui_searchplantpage.h | ${cmake_ninja_workdir}CMakeFiles/PlantMap_autogen ${cmake_ninja_workdir}PlantMap_autogen/include/ui_mainwindow.h ${cmake_ninja_workdir}PlantMap_autogen/include/ui_addplantpage.h ${cmake_ninja_workdir}PlantMap_autogen/include/ui_searchplantpage.h: phony PlantMap_autogen/timestamp || PlantMap_autogen_timestamp_deps
 
 # =============================================================================
 # Target aliases.

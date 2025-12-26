@@ -10,6 +10,7 @@
 class Plant
 {
 public:
+    Plant(){};
     Plant(const QString& name, const QString& desc = "", const QString& imgPath = "");
 
     QString getName() const;

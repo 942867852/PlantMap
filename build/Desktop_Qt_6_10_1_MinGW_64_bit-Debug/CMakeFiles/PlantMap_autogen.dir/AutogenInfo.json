@@ -316,6 +316,12 @@
 	"HEADERS" : 
 	[
 		[
+			"D:/QtProject/PlantMap/addplantpage.h",
+			"MU",
+			"EWIEGA46WW/moc_addplantpage.cpp",
+			null
+		],
+		[
 			"D:/QtProject/PlantMap/mainwindow.h",
 			"MU",
 			"EWIEGA46WW/moc_mainwindow.cpp",
@@ -340,15 +346,9 @@
 			null
 		],
 		[
-			"D:/QtProject/PlantMap/searchplant.h",
+			"D:/QtProject/PlantMap/searchplantpage.h",
 			"MU",
-			"EWIEGA46WW/moc_searchplant.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/showplant.h",
-			"MU",
-			"EWIEGA46WW/moc_showplant.cpp",
+			"EWIEGA46WW/moc_searchplantpage.cpp",
 			null
 		],
 		[
@@ -429,13 +429,13 @@
 	"SETTINGS_FILE" : "D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/PlantMap_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
+		[ "D:/QtProject/PlantMap/addplantpage.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/main.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/mainwindow.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/plant.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/plantmanager.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/planttraits.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/searchplant.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/showplant.cpp", "MU", null ],
+		[ "D:/QtProject/PlantMap/searchplantpage.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/traitregistry.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],

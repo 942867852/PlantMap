@@ -1,9 +1,9 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
-#include "searchplant.h"
-#include "showplant.h"
 #include <QCloseEvent>
 #include <QMainWindow>
+#include "addplantpage.h"
+#include "searchplantpage.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -23,7 +23,8 @@ public:
 
 private:
     Ui::MainWindow *ui;
-    searchPlant *searchPage;
-    showPlant *showPage;
+    AddPlantPage *addPage;
+    SearchPlantPage *searchPage;
+
 };
 #endif // MAINWINDOW_H
