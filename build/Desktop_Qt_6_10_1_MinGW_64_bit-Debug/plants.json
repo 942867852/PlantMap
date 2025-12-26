@@ -1,0 +1,50 @@
+[
+    {
+        "description": "美丽芳香",
+        "image_path": "/images/roses.jpg",
+        "name": "玫瑰",
+        "properties": {
+            "bloom_end": "2024-07-31",
+            "bloom_start": "2024-05-01",
+            "light_max": 3,
+            "light_min": 2,
+            "temp_max": 30,
+            "temp_min": 15,
+            "traits": [
+                {
+                    "category_str": "光照",
+                    "description": "喜欢充足阳光",
+                    "name": "喜阳"
+                },
+                {
+                    "category_str": "开花",
+                    "description": "会开花",
+                    "name": "开花"
+                }
+            ]
+        }
+    },
+    {
+        "description": "阴湿环境生长",
+        "image_path": ":/images/fern.png",
+        "name": "蕨类",
+        "properties": {
+            "light_max": 2,
+            "light_min": 1,
+            "temp_max": 25,
+            "temp_min": 10,
+            "traits": [
+                {
+                    "category_str": "水分",
+                    "description": "需要高湿度",
+                    "name": "喜湿"
+                },
+                {
+                    "category_str": "光照",
+                    "description": "适合阴暗环境",
+                    "name": "耐阴"
+                }
+            ]
+        }
+    }
+]
