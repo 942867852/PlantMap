@@ -3,6 +3,7 @@
 #include <QFile>
 #include <QJsonDocument>
 #include <QTextStream>
+#include <QJsonArray>
 
 // -------------------------------
 // 工具函数
@@ -134,7 +135,7 @@ bool TaxonomyRegistry::addTaxonByParts(const QStringList &parts)
     TaxonomicRank expectedRank = TaxonomicRank::Kingdom;
 
     for (const QString& part : parts) {
-        if (static_cast<int>(expectedRank) > 7) break;
+        if (static_cast<int>(expectedRank) > 7) break; //查看
 
         bool found = false;
         for (const auto& child : current->getChildren()) {
