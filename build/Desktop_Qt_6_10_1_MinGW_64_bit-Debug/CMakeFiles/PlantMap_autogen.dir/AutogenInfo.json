@@ -352,6 +352,12 @@
 			null
 		],
 		[
+			"D:/QtProject/PlantMap/taxonomy.h",
+			"MU",
+			"EWIEGA46WW/moc_taxonomy.cpp",
+			null
+		],
+		[
 			"D:/QtProject/PlantMap/traitregistry.h",
 			"MU",
 			"EWIEGA46WW/moc_traitregistry.cpp",
@@ -420,7 +426,7 @@
 	"MOC_RELAXED_MODE" : false,
 	"MOC_SKIP" : [],
 	"MULTI_CONFIG" : false,
-	"PARALLEL" : 10,
+	"PARALLEL" : 8,
 	"PARSE_CACHE_FILE" : "D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/PlantMap_autogen.dir/ParseCache.txt",
 	"QT_MOC_EXECUTABLE" : "D:/Qt/6.10.1/mingw_64/bin/moc.exe",
 	"QT_UIC_EXECUTABLE" : "D:/Qt/6.10.1/mingw_64/bin/uic.exe",
@@ -436,6 +442,7 @@
 		[ "D:/QtProject/PlantMap/plantmanager.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/planttraits.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/searchplantpage.cpp", "MU", null ],
+		[ "D:/QtProject/PlantMap/taxonomy.cpp", "MU", null ],
 		[ "D:/QtProject/PlantMap/traitregistry.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],

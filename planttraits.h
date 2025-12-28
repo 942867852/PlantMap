@@ -8,6 +8,7 @@
 #include <QMap>
 #include <QMetaType>
 #include <QJsonObject>
+#include "taxonomy.h"
 
 //植物习性大类枚举
 enum class TraitCategory {
@@ -64,6 +65,16 @@ public:
     // JSON
     QJsonObject toJson() const;
     static PlantProperties fromJson(const QJsonObject& obj);
+
+    // 🌿 分类学信息
+    QSharedPointer<TaxonNode> taxonomyNode; // 指向该植物的“种”或“变种”节点
+
+    // 快捷访问方法
+    QString getFamily() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Order) : ""; }
+    QString getGenus() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Family) : ""; }
+    QString getSpecies() const { return taxonomyNode ? taxonomyNode->getName() : ""; }
+
+
 };
 
 Q_DECLARE_METATYPE(PlantProperties)

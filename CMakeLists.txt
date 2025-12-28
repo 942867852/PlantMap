@@ -29,6 +29,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         plantmanager.h plantmanager.cpp
         addplantpage.h addplantpage.cpp addplantpage.ui
         searchplantpage.h searchplantpage.cpp searchplantpage.ui
+        taxonomy.h taxonomy.cpp
 
 
     )
