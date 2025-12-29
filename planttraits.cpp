@@ -131,3 +131,23 @@ PlantProperties PlantProperties::fromJson(const QJsonObject &obj) {
 
     return props;
 }
+
+bool PlantProperties::setTaxonomyNode(const QSharedPointer<TaxonNode> &node)
+{
+    if (!node) {
+        return false;
+    }
+
+    TaxonomicRank rank = node->getRank();
+
+    // 只允许“种”或“变种”
+    if (rank == TaxonomicRank::Variety ||     // 变种
+        rank == TaxonomicRank::Species) {    // 种
+        taxonomyNode = node;
+        return true;
+    } else {
+        qWarning() << "❌ 不能将植物挂载在" << rankToString(rank)
+            << "级别上！必须是“种”或“变种”";
+        return false;
+    }
+}

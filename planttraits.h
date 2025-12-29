@@ -69,6 +69,11 @@ public:
     // 🌿 分类学信息
     QSharedPointer<TaxonNode> taxonomyNode; // 指向该植物的“种”或“变种”节点
 
+    // 安全地设置分类节点
+    bool setTaxonomyNode(const QSharedPointer<TaxonNode>& node);
+
+
+
     // 快捷访问方法
     QString getFamily() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Order) : ""; }
     QString getGenus() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Family) : ""; }

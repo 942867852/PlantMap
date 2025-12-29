@@ -11,7 +11,7 @@
 // 前向声明
 class TaxonNode;
 
-// 分类等级枚举
+// 分类等级枚举，门纲目科属
 enum class TaxonomicRank {
     Kingdom = 0,  // 界
     Phylum,       // 门

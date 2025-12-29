@@ -23,6 +23,21 @@ int main(int argc, char *argv[])
     qDebug() << "科：" << rose.properties().getFamily();   // 输出：蔷薇科
     qDebug() << "属：" << rose.properties().getGenus();   // 输出：蔷薇属
 
+    //====================================================================
+
+    // 正确用法
+    auto varietyNode = Taxons().findNodeByName("重瓣玫瑰"); // 假设它是“变种”
+    if (rose.properties().setTaxonomyNode(varietyNode)) {
+        qDebug() << "✅ 分类设置成功";
+    } else {
+        qDebug() << "❌ 设置失败";
+    }
+
+    // 错误用法（会失败）
+    auto familyNode = Taxons().findNodeByName("蔷薇科");
+    rose.properties().setTaxonomyNode(familyNode);
+    // 输出警告：❌ 不能将植物挂载在“科”级别上！
+
 
     // PlantManager mgr;
 

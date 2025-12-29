@@ -180,7 +180,8 @@ QList<QSharedPointer<TaxonNode>> TaxonomyRegistry::findNodesByRank(TaxonomicRank
 {
     QList<QSharedPointer<TaxonNode>> result;
     // 这里可以递归遍历整棵树查找
-    std::function<void(const QSharedPointer<TaxonNode>&)> search = [&](const QSharedPointer<TaxonNode>& node) {
+    std::function<void(const QSharedPointer<TaxonNode>&)> search = [&](const QSharedPointer<TaxonNode>& node)
+    {
         if (node->getRank() == rank && node->getName() == name) {
             result.append(node);
         }
@@ -217,7 +218,8 @@ bool TaxonomyRegistry::importFromJson(const QString &filename)
         m_root = newRoot;
         // 重建 m_nodesByName 索引...
         m_nodesByName.clear();
-        std::function<void(const QSharedPointer<TaxonNode>&)> buildIndex = [&](const QSharedPointer<TaxonNode>& node) {
+        std::function<void(const QSharedPointer<TaxonNode>&)> buildIndex =[&](const QSharedPointer<TaxonNode>& node)
+        {
             m_nodesByName[node->getName()].append(node);
             for (const auto& child : node->getChildren()) {
                 buildIndex(child);
