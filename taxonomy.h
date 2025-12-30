@@ -48,9 +48,7 @@ public:
     // JSON 序列化
     QJsonObject toJson() const;
     static QSharedPointer<TaxonNode> fromJson(const QJsonObject& obj, TaxonNode* parent = nullptr);
-    QString getFullScientificName();
 private:
-    QString fullScientificName;
     QString m_name;
     TaxonomicRank m_rank;
     TaxonNode* m_parent;

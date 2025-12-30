@@ -112,24 +112,6 @@ QSharedPointer<TaxonNode> TaxonNode::fromJson(const QJsonObject &obj, TaxonNode 
     return node;
 }
 
-QString TaxonNode::getFullScientificName()
-{
-    if (m_rank == TaxonomicRank::Species)
-    {
-        fullScientificName = getAncestorName(TaxonomicRank::Genus) + " " + getAncestorName(TaxonomicRank::Species);
-    }
-    else if (m_rank == TaxonomicRank::Variety)
-    {
-        fullScientificName = getAncestorName(TaxonomicRank::Genus) + " " + getAncestorName(TaxonomicRank::Species)
-                             + " var. " + getAncestorName(TaxonomicRank::Variety);
-    }
-    else
-    {
-        qDebug() << "该节点既不是种也不是变种";
-    }
-
-}
-
 // -------------------------------
 // TaxonomyRegistry 实现
 // -------------------------------
