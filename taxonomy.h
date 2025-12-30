@@ -43,13 +43,14 @@ public:
 
     // 路径相关
     QStringList getFullPath() const; // e.g., "植物界 > 被子植物门 > ... > 玫瑰"
-    QString getAncestorName(TaxonomicRank rank) const; // 向上查找某一级名称
+    QString getAncestorName(TaxonomicRank rank) const; // 向上查找并返回上一级的名称
 
     // JSON 序列化
     QJsonObject toJson() const;
     static QSharedPointer<TaxonNode> fromJson(const QJsonObject& obj, TaxonNode* parent = nullptr);
-
+    QString getFullScientificName();
 private:
+    QString fullScientificName;
     QString m_name;
     TaxonomicRank m_rank;
     TaxonNode* m_parent;

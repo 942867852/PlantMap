@@ -151,3 +151,4 @@ bool PlantProperties::setTaxonomyNode(const QSharedPointer<TaxonNode> &node)
         return false;
     }
 }
+

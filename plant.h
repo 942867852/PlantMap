@@ -12,13 +12,14 @@ class Plant
 public:
     Plant(){};
     Plant(const QString& name, const QString& desc = "", const QString& imgPath = "");
+    Plant(TaxonomicRank rank);
 
     QString getName() const;
     QString getDescription() const;
-    QString getImagePath() const;
+    QStringList getImagePath() const;
     void setImagePath(const QString& path);
 
-    PlantProperties& properties();
+    PlantProperties& properties(); // 返回植物属性
     const PlantProperties& properties() const;
 
     // JSON
@@ -26,9 +27,10 @@ public:
     static Plant fromJson(const QJsonObject& obj);
 
 private:
-    QString m_name;
+    QStringList m_alias;//植物别名
+    QString m_name;//植物品种名
     QString m_description;
-    QString m_imagePath;  // 图片路径（本地文件或 :/ 资源）
+    QStringList m_imagePath;  // 图片路径（本地文件或 :/ 资源）图片命名使用拉丁名
     PlantProperties m_props;
 };
 

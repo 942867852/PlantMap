@@ -10,14 +10,14 @@ int main(int argc, char *argv[])
 {
 
     // 添加玫瑰的完整路径
-    Taxons().addTaxon("植物界 > 被子植物门 > 蔷薇目 > 蔷薇科 > 蔷薇属 > 玫瑰");
+    Taxons().addTaxon("被子植物门 > 蔷薇目 > 蔷薇科 > 蔷薇属 > 玫瑰");
 
     // 找到“玫瑰”这个节点
     auto roseNode = Taxons().findNodeByName("玫瑰");
 
     // 创建植物
     Plant rose("玫瑰", "美丽");
-    rose.properties().taxonomyNode = roseNode;
+    rose.properties().setTaxonomyNode(roseNode);
 
     // 查询它的科和属
     qDebug() << "科：" << rose.properties().getFamily();   // 输出：蔷薇科

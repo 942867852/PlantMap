@@ -4,10 +4,15 @@
 Plant::Plant(const QString& name, const QString& desc, const QString& imgPath)
     : m_name(name), m_description(desc), m_imagePath(imgPath) {}
 
+Plant::Plant(TaxonomicRank rank)
+{
+    m_props.setTaxonomyNode();//没写完，如何在最初构建植物时添加植物分类信息？
+}
+
 QString Plant::getName() const { return m_name; }
 QString Plant::getDescription() const { return m_description; }
-QString Plant::getImagePath() const { return m_imagePath; }
-void Plant::setImagePath(const QString& path) { m_imagePath = path; }
+QStringList Plant::getImagePath() const { return m_imagePath; }
+void Plant::setImagePath(const QString& path){ m_imagePath.append(path);}
 
 PlantProperties& Plant::properties() { return m_props; }
 const PlantProperties& Plant::properties() const { return m_props; }

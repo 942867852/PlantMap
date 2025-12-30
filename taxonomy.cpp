@@ -112,6 +112,24 @@ QSharedPointer<TaxonNode> TaxonNode::fromJson(const QJsonObject &obj, TaxonNode 
     return node;
 }
 
+QString TaxonNode::getFullScientificName()
+{
+    if (m_rank == TaxonomicRank::Species)
+    {
+        fullScientificName = getAncestorName(TaxonomicRank::Genus) + " " + getAncestorName(TaxonomicRank::Species);
+    }
+    else if (m_rank == TaxonomicRank::Variety)
+    {
+        fullScientificName = getAncestorName(TaxonomicRank::Genus) + " " + getAncestorName(TaxonomicRank::Species)
+                             + " var. " + getAncestorName(TaxonomicRank::Variety);
+    }
+    else
+    {
+        qDebug() << "该节点既不是种也不是变种";
+    }
+
+}
+
 // -------------------------------
 // TaxonomyRegistry 实现
 // -------------------------------
@@ -164,8 +182,61 @@ bool TaxonomyRegistry::addTaxonByParts(const QStringList &parts)
 
 bool TaxonomyRegistry::addTaxon(const QString &fullName, const QString &separator)
 {
+    // 步骤1：拆分路径
     QStringList parts = fullName.split(separator, Qt::SkipEmptyParts);
-    return addTaxonByParts(parts);
+    if (parts.isEmpty()) return false;
+
+    // 步骤2：从后往前找第一个已在树中存在的节点
+    int startIndex = -1;
+    QSharedPointer<TaxonNode> foundNode;
+
+    for (int i = parts.size() - 1; i >= 0; i--) {
+        QString name = parts[i];
+        auto node = findNodeByName(name); // 全局查找名字为 name 的节点
+
+        if (node) {
+            startIndex = i;
+            foundNode = node;
+            break;
+        }
+    }
+
+    // 步骤3：如果找到了已有节点，从那里继续建树
+    if (foundNode && startIndex < parts.size() - 1) {
+        auto current = foundNode;
+        TaxonomicRank expectedRank = static_cast<TaxonomicRank>(static_cast<int>(current->getRank()) + 1);
+
+        for (int i = startIndex + 1; i < parts.size(); ++i) {
+            bool childExists = false;
+            for (const auto& child : current->getChildren()) {
+                if (child->getName() == parts[i]) {
+                    current = child;
+                    expectedRank = static_cast<TaxonomicRank>(static_cast<int>(expectedRank) + 1);
+                    childExists = true;
+                    break;
+                }
+            }
+
+            if (!childExists) {
+                auto newNode = QSharedPointer<TaxonNode>(
+                    new TaxonNode(parts[i], expectedRank, current.data())
+                    );
+                current->addChild(newNode);
+                current = newNode;
+            }
+
+            expectedRank = static_cast<TaxonomicRank>(static_cast<int>(expectedRank) + 1);
+        }
+
+        emit taxonomyChanged();
+        return true;
+    }
+
+    // 步骤4：如果完全没找到任何已有节点 → 按原逻辑从根开始创建（或报错）
+    // 可选：返回 false 提示用户先创建上级分类
+    qWarning() << "❌ 无法添加分类：" << fullName
+               << "\n原因：没有找到已存在的父级（如'蔷薇属'），请先创建完整路径";
+    return false;
 }
 
 QSharedPointer<TaxonNode> TaxonomyRegistry::findNodeByName(const QString &name) const

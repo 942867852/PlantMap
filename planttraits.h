@@ -66,19 +66,22 @@ public:
     QJsonObject toJson() const;
     static PlantProperties fromJson(const QJsonObject& obj);
 
-    // 🌿 分类学信息
-    QSharedPointer<TaxonNode> taxonomyNode; // 指向该植物的“种”或“变种”节点
-
     // 安全地设置分类节点
     bool setTaxonomyNode(const QSharedPointer<TaxonNode>& node);
 
-
+    // 获取taxonomyNode节点信息
+    QSharedPointer<TaxonNode> getTaxonomyNode() {return taxonomyNode;}
+    const QSharedPointer<TaxonNode> getTaxonomyNode() const {return taxonomyNode;}
 
     // 快捷访问方法
-    QString getFamily() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Order) : ""; }
-    QString getGenus() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Family) : ""; }
-    QString getSpecies() const { return taxonomyNode ? taxonomyNode->getName() : ""; }
+    QString getFamily() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Family) : ""; }
+    QString getGenus() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Genus) : ""; }
+    QString getSpecies() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Species): ""; }
+    QString getVariety() const { return taxonomyNode ? taxonomyNode->getAncestorName(TaxonomicRank::Variety): ""; }
 
+private:
+    // 🌿 分类学信息
+    QSharedPointer<TaxonNode> taxonomyNode; // 指向该植物的“种”或“变种”节点
 
 };
 
