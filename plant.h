@@ -12,9 +12,13 @@ class Plant
 public:
     Plant(){};
     Plant(const QString& name, const QString& desc = "", const QString& imgPath = "");
-    Plant(TaxonomicRank rank);
+
+    void setLatinName(QString latinName);   // 设置拉丁文名
+    void setName(QString name) {m_name = name;}     // 设置品种名
+    void setAliasName(QString aliasName) {m_alias.append(aliasName);}   // 设置别名/俗名
 
     QString getName() const;
+    QStringList getAliasName() const;
     QString getDescription() const;
     QStringList getImagePath() const;
     void setImagePath(const QString& path);
@@ -29,6 +33,7 @@ public:
 private:
     QStringList m_alias;//植物别名
     QString m_name;//植物品种名
+    QString m_latinName;
     QString m_description;
     QStringList m_imagePath;  // 图片路径（本地文件或 :/ 资源）图片命名使用拉丁名
     PlantProperties m_props;

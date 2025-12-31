@@ -156,6 +156,204 @@ QList<Plant> PlantManager::advancedSearch(
     return result;
 }
 
+// -------------------------------
+// 导出植物到 CSV 文件
+// -------------------------------
+bool PlantManager::exportPlantsToCsv(const QString &filename) const
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        qWarning() << "无法打开文件进行写入:" << filename;
+        return false;
+    }
+
+    QTextStream out(&file);
+
+    // 写入表头
+    out << "名称,描述,图片路径,花期开始,花期结束,光照最小,光照最大,温度最小,温度最大,分类节点,标签\n";
+
+    // 写入每行数据
+    for (const auto& plant : m_plants) {
+        const auto& props = plant.properties();
+
+        // 基本信息
+        QString name = plant.getName().replace("\"", "\"\"");
+        QString description = plant.getDescription().replace("\"", "\"\"");
+        QString imagePath = plant.getImagePath().replace("\"", "\"\"");
+
+        // 花期
+        QString bloomStart = props.hasBloomPeriod() ? props.bloomStart.toString(Qt::ISODate) : "";
+        QString bloomEnd = props.hasBloomPeriod() ? props.bloomEnd.toString(Qt::ISODate) : "";
+
+        // 光照
+        QString lightMin = QString::number(static_cast<int>(props.lightRange.first));
+        QString lightMax = QString::number(static_cast<int>(props.lightRange.second));
+
+        // 温度
+        QString tempMin = QString::number(props.temperatureRange.first);
+        QString tempMax = QString::number(props.temperatureRange.second);
+
+        // 分类节点（路径）
+        QString taxonomyPath = "";
+        if (props.taxonomyNode) {
+            taxonomyPath = props.taxonomyNode->getFullPath().join(" > ");
+        }
+
+        // 标签（用逗号分隔）
+        QStringList traitNames;
+        for (const auto& trait : props.traits) {
+            traitNames.append(trait.name.replace("\"", "\"\""));
+        }
+        QString traits = traitNames.join(",");
+
+        // 写入一行
+        out << QString("\"%1\",\"%2\",\"%3\",\"%4\",\"%5\",\"%6\",\"%7\",\"%8\",\"%9\",\"%10\",\"%11\"\n")
+                   .arg(name)
+                   .arg(description)
+                   .arg(imagePath)
+                   .arg(bloomStart)
+                   .arg(bloomEnd)
+                   .arg(lightMin)
+                   .arg(lightMax)
+                   .arg(tempMin)
+                   .arg(tempMax)
+                   .arg(taxonomyPath)
+                   .arg(traits);
+    }
+
+    file.close();
+    return true;
+}
+
+// -------------------------------
+// 从 CSV 文件导入植物
+// -------------------------------
+bool PlantManager::importPlantsFromCsv(const QString &filename)
+{
+    QFile file(filename);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        qWarning() << "无法打开文件进行读取:" << filename;
+        return false;
+    }
+
+    QTextStream in(&file);
+    QString headerLine = in.readLine(); // 跳过表头
+
+    int lineNumber = 1;
+    while (!in.atEnd()) {
+        lineNumber++;
+        QString line = in.readLine();
+        if (line.trimmed().isEmpty()) continue;
+
+        // 解析 CSV 行
+        QStringList fields = parseCsvLine(line);
+        if (fields.size() < 11) {
+            qWarning() << "第" << lineNumber << "行格式错误";
+            continue;
+        }
+
+        try {
+            // 解析各个字段
+            QString name = fields[0].trimmed().remove('"');
+            QString description = fields[1].trimmed().remove('"');
+            QString imagePath = fields[2].trimmed().remove('"');
+
+            // 花期
+            QDate bloomStart, bloomEnd;
+            if (!fields[3].trimmed().isEmpty()) {
+                bloomStart = QDate::fromString(fields[3].trimmed().remove('"'), Qt::ISODate);
+            }
+            if (!fields[4].trimmed().isEmpty()) {
+                bloomEnd = QDate::fromString(fields[4].trimmed().remove('"'), Qt::ISODate);
+            }
+
+            // 光照
+            PlantProperties::LightLevel lightMin = static_cast<PlantProperties::LightLevel>(
+                fields[5].trimmed().toInt());
+            PlantProperties::LightLevel lightMax = static_cast<PlantProperties::LightLevel>(
+                fields[6].trimmed().toInt());
+
+            // 温度
+            int tempMin = fields[7].trimmed().toInt();
+            int tempMax = fields[8].trimmed().toInt();
+
+            // 分类节点
+            QString taxonomyPath = fields[9].trimmed().remove('"');
+
+            // 标签
+            QString traitsStr = fields[10].trimmed().remove('"');
+            QStringList traitNames = traitsStr.split(",", Qt::SkipEmptyParts);
+
+            // 创建植物对象
+            Plant plant(name, description, imagePath);
+
+            // 设置属性
+            auto& props = plant.properties();
+            props.bloomStart = bloomStart;
+            props.bloomEnd = bloomEnd;
+            props.lightRange = {lightMin, lightMax};
+            props.temperatureRange = {tempMin, tempMax};
+
+            // 设置分类节点（如果存在）
+            if (!taxonomyPath.isEmpty()) {
+                // 这里需要从路径中查找节点，但需要额外逻辑
+                // 简化版本：不自动设置分类节点
+            }
+
+            // 添加标签
+            for (const QString& traitName : traitNames) {
+                // 这里需要从 TraitRegistry 中查找标签
+                // 简化版本：暂时跳过标签设置
+            }
+
+            // 添加到管理器
+            addPlant(plant);
+
+        } catch (...) {
+            qWarning() << "第" << lineNumber << "行解析错误";
+        }
+    }
+
+    file.close();
+    emit plantsChanged();
+    return true;
+}
+
+// -------------------------------
+// 解析 CSV 行（处理引号和逗号）
+// -------------------------------
+QStringList PlantManager::parseCsvLine(const QString &line) const
+{
+    QStringList fields;
+    QString field;
+    bool inQuotes = false;
+
+    for (int i = 0; i < line.length(); ++i) {
+        QChar ch = line[i];
+
+        if (ch == '"') {
+            if (inQuotes && i + 1 < line.length() && line[i + 1] == '"') {
+                // 转义的引号
+                field += '"';
+                ++i;
+            } else {
+                // 引号开始/结束
+                inQuotes = !inQuotes;
+            }
+        } else if (ch == ',' && !inQuotes) {
+            // 逗号分隔符
+            fields.append(field);
+            field.clear();
+        } else {
+            field += ch;
+        }
+    }
+
+    // 添加最后一个字段
+    fields.append(field);
+    return fields;
+}
+
 bool PlantManager::saveToFile(const QString &filename)
 {
     QFile file(filename);

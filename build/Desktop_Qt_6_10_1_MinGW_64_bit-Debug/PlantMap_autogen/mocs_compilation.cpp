@@ -3,4 +3,5 @@
 #include "EWIEGA46WW/moc_mainwindow.cpp"
 #include "EWIEGA46WW/moc_plantmanager.cpp"
 #include "EWIEGA46WW/moc_searchplantpage.cpp"
+#include "EWIEGA46WW/moc_taxonomy.cpp"
 #include "EWIEGA46WW/moc_traitregistry.cpp"

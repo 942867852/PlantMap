@@ -8,6 +8,7 @@ PlantMap_autogen/timestamp: \
 	D:/Qt/6.10.1/mingw_64/include/QtCore/QObject \
 	D:/Qt/6.10.1/mingw_64/include/QtCore/QRect \
 	D:/Qt/6.10.1/mingw_64/include/QtCore/QSet \
+	D:/Qt/6.10.1/mingw_64/include/QtCore/QSharedPointer \
 	D:/Qt/6.10.1/mingw_64/include/QtCore/QSize \
 	D:/Qt/6.10.1/mingw_64/include/QtCore/QSizeF \
 	D:/Qt/6.10.1/mingw_64/include/QtCore/QString \
@@ -621,6 +622,8 @@ PlantMap_autogen/timestamp: \
 	D:/QtProject/PlantMap/planttraits.h \
 	D:/QtProject/PlantMap/searchplantpage.cpp \
 	D:/QtProject/PlantMap/searchplantpage.h \
+	D:/QtProject/PlantMap/taxonomy.cpp \
+	D:/QtProject/PlantMap/taxonomy.h \
 	D:/QtProject/PlantMap/traitregistry.cpp \
 	D:/QtProject/PlantMap/traitregistry.h \
 	D:/QtProject/PlantMap/addplantpage.ui \

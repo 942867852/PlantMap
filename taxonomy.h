@@ -49,6 +49,7 @@ public:
     QJsonObject toJson() const;
     static QSharedPointer<TaxonNode> fromJson(const QJsonObject& obj, TaxonNode* parent = nullptr);
 private:
+
     QString m_name;
     TaxonomicRank m_rank;
     TaxonNode* m_parent;

@@ -8,6 +8,7 @@ D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autoge
   D:/Qt/6.10.1/mingw_64/include/QtCore/QMetaType \
   D:/Qt/6.10.1/mingw_64/include/QtCore/QObject \
   D:/Qt/6.10.1/mingw_64/include/QtCore/QSet \
+  D:/Qt/6.10.1/mingw_64/include/QtCore/QSharedPointer \
   D:/Qt/6.10.1/mingw_64/include/QtCore/QString \
   D:/Qt/6.10.1/mingw_64/include/QtCore/q17memory.h \
   D:/Qt/6.10.1/mingw_64/include/QtCore/q20functional.h \
@@ -354,4 +355,5 @@ D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autoge
   D:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/vadefs.h \
   D:/Qt/Tools/mingw1310_64/x86_64-w64-mingw32/include/wchar.h \
   D:/QtProject/PlantMap/plant.h \
-  D:/QtProject/PlantMap/planttraits.h
+  D:/QtProject/PlantMap/planttraits.h \
+  D:/QtProject/PlantMap/taxonomy.h

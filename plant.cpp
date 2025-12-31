@@ -4,9 +4,17 @@
 Plant::Plant(const QString& name, const QString& desc, const QString& imgPath)
     : m_name(name), m_description(desc), m_imagePath(imgPath) {}
 
-Plant::Plant(TaxonomicRank rank)
+void Plant::setLatinName(QString latinName)
 {
-    m_props.setTaxonomyNode();//没写完，如何在最初构建植物时添加植物分类信息？
+    TaxonNode node = *m_props.getTaxonomyNode();
+    if (node.getRank() == TaxonomicRank::Species)
+    {
+        m_latinName = node.getParent()->getName() + " " + node.getName();
+    }
+    else if (node.getRank() == TaxonomicRank::Variety)
+    {
+        m_latinName = node.getParent()->getParent()->getName() + " " + node.getParent()->getName() + " var. " + node.getName();
+    }
 }
 
 QString Plant::getName() const { return m_name; }
@@ -19,10 +27,16 @@ const PlantProperties& Plant::properties() const { return m_props; }
 
 QJsonObject Plant::toJson() const {
     QJsonObject obj;
-    obj["name"] = m_name;
+    QJsonArray imageArray;
+    for (const QString& str: m_imagePath)
+    {
+        imageArray.append(str);
+    }
+    obj["popular_name"] = m_name;
     obj["description"] = m_description;
-    obj["image_path"] = m_imagePath;
+    obj["image_path"] = imageArray;
     obj["properties"] = m_props.toJson();
+
     return obj;
 }
 

@@ -33,6 +33,10 @@ public:
         bool matchAllTraits = true
         ) const;
 
+    bool exportPlantsToCsv(const QString& filename) const;//需要修改
+    bool importPlantsFromCsv(const QString& filename);//需要修改
+    QStringList parseCsvLine(const QString &line) const;
+
     // JSON 文件操作（示例）
     bool saveToFile(const QString& filename);
     bool loadFromFile(const QString& filename);
