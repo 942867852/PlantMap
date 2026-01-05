@@ -8,35 +8,38 @@
 
 int main(int argc, char *argv[])
 {
+    //存在问题，中文名和英文名对不上？
 
     // 添加玫瑰的完整路径
-    Taxons().addTaxon("被子植物门 > 蔷薇目 > 蔷薇科 > 蔷薇属 > 玫瑰");
+    Taxons().addTaxon("植物界 > 被子植物门 > 木兰纲 > 蔷薇目 > 蔷薇科 > 蔷薇属 > 玫瑰");
+    Taxons().exportToJson("taxonomy.json");
 
-    // 找到“玫瑰”这个节点
-    auto roseNode = Taxons().findNodeByName("玫瑰");
 
-    // 创建植物
-    Plant rose("玫瑰", "美丽");
-    rose.properties().setTaxonomyNode(roseNode);
+    // // 找到“玫瑰”这个节点
+    // auto roseNode = Taxons().findNodeByName("玫瑰");
 
-    // 查询它的科和属
-    qDebug() << "科：" << rose.properties().getFamily();   // 输出：蔷薇科
-    qDebug() << "属：" << rose.properties().getGenus();   // 输出：蔷薇属
+    // // 创建植物
+    // Plant rose("玫瑰", "美丽");
+    // rose.properties().setTaxonomyNode(roseNode);
 
-    //====================================================================
+    // // 查询它的科和属
+    // qDebug() << "科：" << rose.properties().getFamily();   // 输出：蔷薇科
+    // qDebug() << "属：" << rose.properties().getGenus();   // 输出：蔷薇属
 
-    // 正确用法
-    auto varietyNode = Taxons().findNodeByName("重瓣玫瑰"); // 假设它是“变种”
-    if (rose.properties().setTaxonomyNode(varietyNode)) {
-        qDebug() << "✅ 分类设置成功";
-    } else {
-        qDebug() << "❌ 设置失败";
-    }
+    // //====================================================================
 
-    // 错误用法（会失败）
-    auto familyNode = Taxons().findNodeByName("蔷薇科");
-    rose.properties().setTaxonomyNode(familyNode);
-    // 输出警告：❌ 不能将植物挂载在“科”级别上！
+    // // 正确用法
+    // auto varietyNode = Taxons().findNodeByName("重瓣玫瑰"); // 假设它是“变种”
+    // if (rose.properties().setTaxonomyNode(varietyNode)) {
+    //     qDebug() << "✅ 分类设置成功";
+    // } else {
+    //     qDebug() << "❌ 设置失败";
+    // }
+
+    // // 错误用法（会失败）
+    // auto familyNode = Taxons().findNodeByName("蔷薇科");
+    // rose.properties().setTaxonomyNode(familyNode);
+    // // 输出警告：❌ 不能将植物挂载在“科”级别上！
 
 
     // PlantManager mgr;
@@ -88,6 +91,4 @@ int main(int argc, char *argv[])
     MainWindow w;
     w.show();
     return a.exec();
-
-    return 0;
 }

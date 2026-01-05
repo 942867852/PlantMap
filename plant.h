@@ -14,12 +14,12 @@ public:
     Plant(const QString& name, const QString& desc = "", const QString& imgPath = "");
 
     void setLatinName(QString latinName);   // 设置拉丁文名
-    void setName(QString name) {m_name = name;}     // 设置品种名
+    void setName(QString name) {m_name = name;}     // 设置品种名，若无品种名，填入学名
     void setAliasName(QString aliasName) {m_alias.append(aliasName);}   // 设置别名/俗名
 
     QString getName() const;
     QStringList getAliasName() const;
-    QString getDescription() const;
+    QString getDescription () const;
     QStringList getImagePath() const;
     void setImagePath(const QString& path);
 

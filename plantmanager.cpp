@@ -177,9 +177,9 @@ bool PlantManager::exportPlantsToCsv(const QString &filename) const
         const auto& props = plant.properties();
 
         // 基本信息
-        QString name = plant.getName().replace("\"", "\"\"");
-        QString description = plant.getDescription().replace("\"", "\"\"");
-        QString imagePath = plant.getImagePath().replace("\"", "\"\"");
+        QString name = plant.getName();
+        QString description = plant.getDescription();
+
 
         // 花期
         QString bloomStart = props.hasBloomPeriod() ? props.bloomStart.toString(Qt::ISODate) : "";
@@ -195,22 +195,22 @@ bool PlantManager::exportPlantsToCsv(const QString &filename) const
 
         // 分类节点（路径）
         QString taxonomyPath = "";
-        if (props.taxonomyNode) {
-            taxonomyPath = props.taxonomyNode->getFullPath().join(" > ");
+        if (props.getTaxonomyNode()) {
+            taxonomyPath = props.getTaxonomyNode()->getFullPath().join(" > ");
         }
 
         // 标签（用逗号分隔）
         QStringList traitNames;
         for (const auto& trait : props.traits) {
-            traitNames.append(trait.name.replace("\"", "\"\""));
+            QString nameCopy = trait.name;
+            traitNames.append(nameCopy.replace("\"", "\"\""));
         }
         QString traits = traitNames.join(",");
 
         // 写入一行
-        out << QString("\"%1\",\"%2\",\"%3\",\"%4\",\"%5\",\"%6\",\"%7\",\"%8\",\"%9\",\"%10\",\"%11\"\n")
+        out << QString("\"%1\",\"%2\",\"%3\",\"%4\",\"%5\",\"%6\",\"%7\",\"%8\",\"%9\",\"%10\",\n")
                    .arg(name)
                    .arg(description)
-                   .arg(imagePath)
                    .arg(bloomStart)
                    .arg(bloomEnd)
                    .arg(lightMin)

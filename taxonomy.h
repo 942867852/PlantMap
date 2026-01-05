@@ -13,6 +13,7 @@ class TaxonNode;
 
 // 分类等级枚举，门纲目科属
 enum class TaxonomicRank {
+    Earth = -1,     // 生物圈
     Kingdom = 0,  // 界
     Phylum,       // 门
     Class,        // 纲

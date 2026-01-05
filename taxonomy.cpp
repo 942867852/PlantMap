@@ -10,6 +10,7 @@
 // -------------------------------
 QString rankToString(TaxonomicRank rank) {
     switch (rank) {
+    case TaxonomicRank::Earth:   return QObject::tr("生物圈");
     case TaxonomicRank::Kingdom: return QObject::tr("界");
     case TaxonomicRank::Phylum:  return QObject::tr("门");
     case TaxonomicRank::Class:   return QObject::tr("纲");
@@ -23,6 +24,7 @@ QString rankToString(TaxonomicRank rank) {
 }
 
 TaxonomicRank stringToRank(const QString &str) {
+    if (str == QObject::tr("生物圈")) return TaxonomicRank::Earth;
     if (str == QObject::tr("界")) return TaxonomicRank::Kingdom;
     if (str == QObject::tr("门")) return TaxonomicRank::Phylum;
     if (str == QObject::tr("纲")) return TaxonomicRank::Class;
@@ -213,8 +215,45 @@ bool TaxonomyRegistry::addTaxon(const QString &fullName, const QString &separato
         emit taxonomyChanged();
         return true;
     }
-
     // 步骤4：如果完全没找到任何已有节点 → 按原逻辑从根开始创建（或报错）
+    else
+    {
+        // 从根节点开始
+        auto current = m_root;  // 假设 m_root 是 “生命” 或 “根”
+
+        TaxonomicRank expectedRank = TaxonomicRank::Kingdom;
+
+        // 第二步：逐级处理每一个部分
+        for (const QString& name : parts) {
+            bool found = false;
+
+            // 在当前节点的所有子节点中查找是否有同名的
+            for (auto child : current->getChildren()) {
+                if (child->getName() == name) {
+                    current = child;  // 找到了，进入下一级
+                    found = true;
+                    break;
+                }
+            }
+
+            // 如果没找到，就创建新节点
+            if (!found) {
+                auto newNode = QSharedPointer<TaxonNode>(new TaxonNode(name, expectedRank, current.data()));
+                current->addChild(newNode);
+                current = newNode;
+            }
+
+            // 等级往下一级（门→纲→目→科…）
+            expectedRank = static_cast<TaxonomicRank>(static_cast<int>(expectedRank) + 1);
+        }
+
+        emit taxonomyChanged(); // 告诉界面更新
+        return true;
+    }
+
+
+
+
     // 可选：返回 false 提示用户先创建上级分类
     qWarning() << "❌ 无法添加分类：" << fullName
                << "\n原因：没有找到已存在的父级（如'蔷薇属'），请先创建完整路径";
