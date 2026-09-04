@@ -1,0 +1,5 @@
+build*/
+data/*.json
+data/photos/
+*.user
+.qtcreator/

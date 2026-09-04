@@ -1,71 +1,52 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(PlantMap VERSION 0.1 LANGUAGES CXX)
-
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
+project(PlantMap VERSION 0.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTOUIC ON)
+set(CMAKE_AUTORCC ON)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
-set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+# 核心数据层：不依赖 Widgets，方便以后做命令行工具/自检
+add_library(plantcore STATIC
+    src/core/taxonrank.cpp
+    src/core/speciesinfo.cpp
+    src/core/taxondocument.cpp
 )
+target_include_directories(plantcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core)
+target_link_libraries(plantcore PUBLIC Qt6::Core)
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(PlantMap
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-        planttraits.h planttraits.cpp
-        plant.h plant.cpp
-        traitregistry.h traitregistry.cpp
-        plantmanager.h plantmanager.cpp
-        addplantpage.h addplantpage.cpp addplantpage.ui
-        searchplantpage.h searchplantpage.cpp searchplantpage.ui
-        taxonomy.h taxonomy.cpp
-
-
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET PlantMap APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    if(ANDROID)
-        add_library(PlantMap SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(PlantMap
-            ${PROJECT_SOURCES}
-        )
-    endif()
-endif()
-
-target_link_libraries(PlantMap PRIVATE Qt${QT_VERSION_MAJOR}::Widgets)
-
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.PlantMap)
-endif()
+# 桌面应用
+qt_add_executable(PlantMap
+    src/main.cpp
+    src/ui/mainwindow.cpp
+    src/ui/mainwindow.h
+    src/ui/speciesform.cpp
+    src/ui/speciesform.h
+)
+target_include_directories(PlantMap PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
+)
+target_link_libraries(PlantMap PRIVATE plantcore Qt6::Widgets)
+target_compile_definitions(PlantMap PRIVATE
+    PLANTMAP_SOURCE_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data"
+)
 set_target_properties(PlantMap PROPERTIES
-    ${BUNDLE_ID_OPTION}
+    WIN32_EXECUTABLE TRUE
+    MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
 )
+
+# 控制台自检程序，验证分类树 / 拉丁名唯一性 / JSON 往返
+qt_add_executable(plantmap_selftest
+    tests/selftest.cpp
+)
+target_link_libraries(plantmap_selftest PRIVATE plantcore)
 
 include(GNUInstallDirs)
 install(TARGETS PlantMap
@@ -73,7 +54,3 @@ install(TARGETS PlantMap
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(PlantMap)
-endif()
