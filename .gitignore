@@ -3,4 +3,5 @@ bin/
 data/*.json
 data/photos/
 *.user
+*.rar
 .qtcreator/
