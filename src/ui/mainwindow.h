@@ -29,6 +29,7 @@ private slots:
     void onTreeSelectionChanged();
     void onSearchTextChanged(const QString& text);
     void openSpeciesEditor();
+    void openAdvancedSearch();
     void addUnderSelected();
     void renameSelected();
     void removeSelected();

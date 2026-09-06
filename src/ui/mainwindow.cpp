@@ -4,12 +4,15 @@
 
 #include <QAction>
 #include <QCloseEvent>
+#include <QComboBox>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDesktopServices>
 #include <QFile>
 #include <QFileDialog>
+#include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
@@ -22,6 +25,7 @@
 #include <QPushButton>
 #include <QPixmap>
 #include <QSignalBlocker>
+#include <QSizePolicy>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QToolBar>
@@ -190,12 +194,15 @@ void MainWindow::buildUi()
     m_deleteAction = toolbar->addAction(QStringLiteral("删除"));
     toolbar->addSeparator();
     m_saveAction = toolbar->addAction(QStringLiteral("保存数据"));
+    toolbar->addSeparator();
+    auto* advancedAction = toolbar->addAction(QStringLiteral("高级检索…"));
 
     connect(m_addAction, &QAction::triggered, this, &MainWindow::addUnderSelected);
     connect(m_editAction, &QAction::triggered, this, &MainWindow::openSpeciesEditor);
     connect(m_renameAction, &QAction::triggered, this, &MainWindow::renameSelected);
     connect(m_deleteAction, &QAction::triggered, this, &MainWindow::removeSelected);
     connect(m_saveAction, &QAction::triggered, this, &MainWindow::saveData);
+    connect(advancedAction, &QAction::triggered, this, &MainWindow::openAdvancedSearch);
 
     auto* menu = menuBar()->addMenu(QStringLiteral("数据"));
     menu->addAction(QStringLiteral("保存数据"), this, &MainWindow::saveData);
@@ -208,11 +215,15 @@ void MainWindow::buildUi()
         QMessageBox::information(
             this, QStringLiteral("使用说明"),
             QStringLiteral(
-                "① 在左侧输入框按“中文名 / 拉丁学名 / 别名”搜索植物，"
-                "或直接在分类树中点击植物。\n"
-                "② 右侧上方会立即显示这棵植物的图片，"
+                "① 在左侧输入框按“中文名 / 拉丁学名 / 别名”快速搜索，"
+                "结果列表点击即可跳转。\n"
+                "② 需要按属性精确检索时，点击工具栏“高级检索…”，"
+                "可选择生长习性、生命周期、光照、水分、叶型、"
+                "生长速度、花期月份等条件（条件之间为“并且”关系），"
+                "检索后双击结果即可打开植物。\n"
+                "③ 右侧上方会立即显示这棵植物的图片，"
                 "下方列出全部属性（只读）。\n"
-                "③ 要修改属性时，点击“编辑资料…”，"
+                "④ 要修改属性时，点击“编辑资料…”，"
                 "修改后点“保存并关闭”。\n\n"
                 "管理分类：选中节点后用工具栏的"
                 "“添加下级分类 / 重命名 / 删除”。\n"
@@ -261,13 +272,18 @@ void MainWindow::buildUi()
 
     m_tree = new QTreeWidget(treePanel);
     m_tree->setMinimumWidth(0);
+    m_tree->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Expanding);
     m_tree->setColumnCount(3);
     m_tree->setHeaderLabels({ QStringLiteral("名称"),
                               QStringLiteral("等级"),
                               QStringLiteral("拉丁学名") });
-    m_tree->header()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
-    m_tree->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
-    m_tree->header()->setSectionResizeMode(2, QHeaderView::Stretch);
+    // 三列都允许用户直接拖动表头调整宽度。
+    m_tree->header()->setSectionResizeMode(QHeaderView::Interactive);
+    m_tree->header()->setStretchLastSection(false);
+    m_tree->header()->setMinimumSectionSize(30);
+    m_tree->setColumnWidth(0, 180);
+    m_tree->setColumnWidth(1, 45);
+    m_tree->setColumnWidth(2, 170);
     m_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_tree->setUniformRowHeights(true);
     treeLayout->addWidget(m_tree);
@@ -406,7 +422,8 @@ void MainWindow::onSearchTextChanged(const QString& text)
                 bool matched =
                     n->name.contains(query, Qt::CaseInsensitive);
                 if (!matched && !normalizedQuery.isEmpty()
-                    && n->hasInfo && !n->info.scientificName.isEmpty()
+                    && n->hasInfo
+                    && !n->info.scientificName.isEmpty()
                     && TaxonomyDocument::normalizedScientificName(
                            n->info.scientificName)
                            .contains(normalizedQuery)) {
@@ -472,6 +489,173 @@ void MainWindow::goToPlantFromSearch(QListWidgetItem* item)
     rebuildTree(id);
     m_view->showNode(id);
     refreshActionState();
+}
+
+void MainWindow::openAdvancedSearch()
+{
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("高级检索"));
+    dialog.resize(760, 720);
+
+    auto* layout = new QVBoxLayout(&dialog);
+    auto* filterBox = new QGroupBox(
+        QStringLiteral("按植物属性精确检索（条件之间为“并且”关系）"), &dialog);
+    auto* filterForm = new QFormLayout(filterBox);
+
+    auto fillEnum = [](QComboBox* combo, int max,
+                       auto label, auto key) {
+        combo->addItem(QStringLiteral("不限"), QString());
+        for (int i = 0; i <= max; ++i) {
+            combo->addItem(label(i), key(i));
+        }
+    };
+
+    auto* habitCombo = new QComboBox(filterBox);
+    fillEnum(habitCombo, static_cast<int>(GrowthHabit::Other),
+             [](int i) { return habitLabel(static_cast<GrowthHabit>(i)); },
+             [](int i) { return habitToKey(static_cast<GrowthHabit>(i)); });
+    filterForm->addRow(QStringLiteral("生长习性："), habitCombo);
+
+    auto* lifeCombo = new QComboBox(filterBox);
+    fillEnum(lifeCombo, static_cast<int>(LifeCycle::Perennial),
+             [](int i) { return lifecycleLabel(static_cast<LifeCycle>(i)); },
+             [](int i) { return lifecycleToKey(static_cast<LifeCycle>(i)); });
+    filterForm->addRow(QStringLiteral("生命周期："), lifeCombo);
+
+    auto* lightCombo = new QComboBox(filterBox);
+    fillEnum(lightCombo, static_cast<int>(LightPreference::Shade),
+             [](int i) { return lightLabel(static_cast<LightPreference>(i)); },
+             [](int i) { return lightToKey(static_cast<LightPreference>(i)); });
+    filterForm->addRow(QStringLiteral("光照："), lightCombo);
+
+    auto* waterCombo = new QComboBox(filterBox);
+    fillEnum(waterCombo, static_cast<int>(WaterPreference::Aquatic),
+             [](int i) { return waterLabel(static_cast<WaterPreference>(i)); },
+             [](int i) { return waterToKey(static_cast<WaterPreference>(i)); });
+    filterForm->addRow(QStringLiteral("水分："), waterCombo);
+
+    auto* foliageCombo = new QComboBox(filterBox);
+    fillEnum(foliageCombo, static_cast<int>(FoliageType::Deciduous),
+             [](int i) { return foliageLabel(static_cast<FoliageType>(i)); },
+             [](int i) { return foliageToKey(static_cast<FoliageType>(i)); });
+    filterForm->addRow(QStringLiteral("叶型："), foliageCombo);
+
+    auto* rateCombo = new QComboBox(filterBox);
+    fillEnum(rateCombo, static_cast<int>(GrowthRate::Fast),
+             [](int i) { return growthRateLabel(static_cast<GrowthRate>(i)); },
+             [](int i) { return growthRateToKey(static_cast<GrowthRate>(i)); });
+    filterForm->addRow(QStringLiteral("生长速度："), rateCombo);
+
+    auto* bloomMonthCombo = new QComboBox(filterBox);
+    bloomMonthCombo->addItem(QStringLiteral("不限"), 0);
+    for (int month = 1; month <= 12; ++month)
+        bloomMonthCombo->addItem(QStringLiteral("%1月").arg(month), month);
+    filterForm->addRow(QStringLiteral("花期月份："), bloomMonthCombo);
+    layout->addWidget(filterBox);
+
+    auto* countLabel = new QLabel(&dialog);
+    layout->addWidget(countLabel);
+    auto* results = new QListWidget(&dialog);
+    results->setMinimumHeight(240);
+    layout->addWidget(results, 1);
+
+    auto runSearch = [&]() {
+        results->clear();
+        const QString habitKey = habitCombo->currentData().toString();
+        const QString lifeKey = lifeCombo->currentData().toString();
+        const QString lightKey = lightCombo->currentData().toString();
+        const QString waterKey = waterCombo->currentData().toString();
+        const QString foliageKey = foliageCombo->currentData().toString();
+        const QString rateKey = rateCombo->currentData().toString();
+        const int bloomMonth = bloomMonthCombo->currentData().toInt();
+
+        std::function<void(int)> visit = [&](int parentId) {
+            for (int childId : m_document->childIdsOf(parentId)) {
+                const TaxonNode* n = m_document->node(childId);
+                if (n && TaxonRanks::canHostPlantInfo(n->rank)) {
+                    bool ok = true;
+                    if (ok && !habitKey.isEmpty())
+                        ok = habitToKey(n->info.habit) == habitKey;
+                    if (ok && !lifeKey.isEmpty())
+                        ok = lifecycleToKey(n->info.lifeCycle) == lifeKey;
+                    if (ok && !lightKey.isEmpty())
+                        ok = lightToKey(n->info.light) == lightKey;
+                    if (ok && !waterKey.isEmpty())
+                        ok = waterToKey(n->info.water) == waterKey;
+                    if (ok && !foliageKey.isEmpty())
+                        ok = foliageToKey(n->info.foliage) == foliageKey;
+                    if (ok && !rateKey.isEmpty())
+                        ok = growthRateToKey(n->info.growthRate) == rateKey;
+                    if (ok && bloomMonth > 0)
+                        ok = n->info.bloomMonths.contains(bloomMonth);
+
+                    if (ok) {
+                        auto* item = new QListWidgetItem(
+                            n->info.scientificName.isEmpty()
+                                ? n->name
+                                : QStringLiteral("%1（%2）")
+                                      .arg(n->name, n->info.scientificName));
+                        item->setData(NodeIdRole, n->id);
+                        item->setToolTip(m_document->displayPathOf(n->id));
+                        results->addItem(item);
+                    }
+                }
+                visit(childId);
+            }
+        };
+        for (int rootId : m_document->roots())
+            visit(rootId);
+
+        countLabel->setText(
+            results->count() == 0
+                ? QStringLiteral("没有符合条件的植物。")
+                : QStringLiteral("找到 %1 个符合条件的植物，双击可打开：")
+                      .arg(results->count()));
+        if (results->count() == 0) {
+            auto* emptyItem = new QListWidgetItem(QStringLiteral("（无结果）"));
+            emptyItem->setFlags(emptyItem->flags() & ~Qt::ItemIsEnabled);
+            results->addItem(emptyItem);
+        }
+    };
+
+    auto openSelected = [&]() {
+        QListWidgetItem* item = results->currentItem();
+        if (!item)
+            item = results->count() > 0 ? results->item(0) : nullptr;
+        if (!item)
+            return;
+        const int id = item->data(NodeIdRole).toInt();
+        if (id <= 0)
+            return;
+        m_searchEdit->clear();
+        rebuildTree(id);
+        m_view->showNode(id);
+        refreshActionState();
+        dialog.accept();
+    };
+
+    auto* buttons = new QDialogButtonBox(&dialog);
+    QPushButton* searchButton =
+        buttons->addButton(QStringLiteral("检索"),
+                           QDialogButtonBox::AcceptRole);
+    QPushButton* openButton =
+        buttons->addButton(QStringLiteral("打开选中植物"),
+                           QDialogButtonBox::ActionRole);
+    QPushButton* closeButton =
+        buttons->addButton(QStringLiteral("关闭"),
+                           QDialogButtonBox::RejectRole);
+    connect(searchButton, &QPushButton::clicked, &dialog, [&] {
+        runSearch();
+    });
+    connect(openButton, &QPushButton::clicked, &dialog, [&] {
+        openSelected();
+    });
+    connect(closeButton, &QPushButton::clicked, &dialog, &QDialog::reject);
+    connect(results, &QListWidget::itemDoubleClicked,
+            &dialog, [&](QListWidgetItem*) { openSelected(); });
+    layout->addWidget(buttons);
+
+    dialog.exec();
 }
 
 void MainWindow::openSpeciesEditor()
