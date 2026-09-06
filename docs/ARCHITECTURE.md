@@ -28,8 +28,9 @@
 | `taxonrank.h/.cpp` | 等级枚举、下一级推导、中文名 |
 | `speciesinfo.h/.cpp` | 物种资料：环境需求、生长形态、物候、照片、扩展属性 |
 | `taxondocument.h/.cpp` | 整棵分类树 + 资料 + 拉丁名索引 + JSON 持久化 |
-| `mainwindow.h/.cpp` | 主窗口、分类树导航、增删改 |
-| `speciesform.h/.cpp` | 物种资料编辑表单 |
+| `mainwindow.h/.cpp` | 主窗口、分类树、搜索、增删改入口 |
+| `speciesview.h/.cpp` | 物种资料只读详情页（图片 + 全部属性） |
+| `speciesform.h/.cpp` | 物种资料编辑表单（在独立编辑窗口中打开） |
 
 ## 数据文件
 
@@ -59,6 +60,8 @@
 ```
 
 照片文件复制到 `<数据目录>/photos/`，JSON 只保存相对文件名。
+默认数据目录是 `bin/data/`（可执行文件同级目录），把整个 `bin/` 文件夹复制到
+另一台电脑即可连同数据库一起运行；也可用 `--data-dir` 显式指定。
 
 ## 未来扩展点
 

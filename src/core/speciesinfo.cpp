@@ -337,6 +337,38 @@ bool SpeciesInfo::isEmpty() const
         && custom.isEmpty();
 }
 
+bool SpeciesInfo::operator==(const SpeciesInfo& other) const
+{
+    return scientificName == other.scientificName
+        && aliases == other.aliases
+        && description == other.description
+        && photos == other.photos
+        && light == other.light
+        && water == other.water
+        && temperatureMinC == other.temperatureMinC
+        && temperatureMaxC == other.temperatureMaxC
+        && humidityMinPct == other.humidityMinPct
+        && humidityMaxPct == other.humidityMaxPct
+        && phMin == other.phMin
+        && phMax == other.phMax
+        && soilTypes == other.soilTypes
+        && hardinessZoneLow == other.hardinessZoneLow
+        && hardinessZoneHigh == other.hardinessZoneHigh
+        && habit == other.habit
+        && lifeCycle == other.lifeCycle
+        && foliage == other.foliage
+        && growthRate == other.growthRate
+        && heightMinCm == other.heightMinCm
+        && heightMaxCm == other.heightMaxCm
+        && spreadMinCm == other.spreadMinCm
+        && spreadMaxCm == other.spreadMaxCm
+        && propagationMethods == other.propagationMethods
+        && usageTags == other.usageTags
+        && bloomMonths == other.bloomMonths
+        && fruitMonths == other.fruitMonths
+        && custom == other.custom;
+}
+
 QJsonObject SpeciesInfo::toJson() const
 {
     QJsonObject obj;

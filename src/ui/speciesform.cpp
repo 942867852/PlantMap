@@ -1,5 +1,6 @@
 #include "speciesform.h"
 
+#include <QAbstractSpinBox>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDateTime>
@@ -7,6 +8,7 @@
 #include <QDesktopServices>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QEvent>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -22,7 +24,10 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QResizeEvent>
 #include <QScrollArea>
+#include <QScrollBar>
+#include <QSignalBlocker>
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QTableWidget>
@@ -32,6 +37,23 @@
 #include <functional>
 
 namespace {
+
+// 拦截鼠标滚轮：让下拉框在悬停/聚焦时不会因为滚动而悄悄改变选项。
+class WheelIgnoreFilter : public QObject
+{
+public:
+    explicit WheelIgnoreFilter(QObject* parent)
+        : QObject(parent)
+    {
+    }
+
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Wheel)
+            return true;
+        return QObject::eventFilter(watched, event);
+    }
+};
 
 QCheckBox* makeCheckBox(const QString& text, const QString& key = QString())
 {
@@ -119,6 +141,8 @@ void SpeciesForm::showNode(int id)
     }
 
     m_stack->setCurrentIndex(1);
+    if (m_formScroll)
+        m_formScroll->verticalScrollBar()->setValue(0);
     m_loading = true;
     if (n->hasInfo) {
         populateFromInfo(n->info);
@@ -147,6 +171,7 @@ QWidget* SpeciesForm::buildFormPage()
     auto* scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
+    m_formScroll = scroll;
 
     auto* content = new QWidget;
     auto* outer = new QVBoxLayout(content);
@@ -156,49 +181,88 @@ QWidget* SpeciesForm::buildFormPage()
     m_pathLabel->setStyleSheet(QStringLiteral("font-weight: bold;"));
     outer->addWidget(m_pathLabel);
 
-    // ---------------- 基本信息 ----------------
-    auto* identityBox = new QGroupBox(QStringLiteral("身份、描述与照片"), content);
+    // ---------------- 植物照片（点植物后先看这里的大图） ----------------
+    auto* photoBox = new QGroupBox(
+        QStringLiteral("植物照片（点击缩略图可切换大图）"), content);
+    auto* photoLayout = new QVBoxLayout(photoBox);
+
+    m_photoPreview = new QLabel(photoBox);
+    m_photoPreview->setObjectName(QStringLiteral("photoPreview"));
+    m_photoPreview->setAlignment(Qt::AlignCenter);
+    m_photoPreview->setMinimumHeight(220);
+    m_photoPreview->setStyleSheet(
+        QStringLiteral("QLabel#photoPreview {"
+                       "  border: 1px solid #b0b0b0;"
+                       "  background: #f8f8f8;"
+                       "  color: #777777;"
+                       "  font-size: 14px; }"));
+    m_photoPreview->setText(QStringLiteral("暂无照片\n\n点击左侧分类树中的植物后，"
+                                           "可在这里看到它的图片。"));
+    photoLayout->addWidget(m_photoPreview);
+
+    m_photoList = new QListWidget(photoBox);
+    m_photoList->setIconSize(QSize(88, 88));
+    m_photoList->setViewMode(QListView::IconMode);
+    m_photoList->setResizeMode(QListView::Adjust);
+    m_photoList->setMovement(QListView::Static);
+    m_photoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
+    m_photoList->setMinimumHeight(104);
+    m_photoList->setToolTip(QStringLiteral("选中即切换上方大图；"
+                                           "可多选后从资料中移除。"));
+    photoLayout->addWidget(m_photoList);
+
+    auto* photoButtons = new QHBoxLayout;
+    auto* addPhotoButton = new QPushButton(QStringLiteral("添加照片…"), photoBox);
+    auto* removePhotoButton = new QPushButton(QStringLiteral("从资料移除"), photoBox);
+    auto* openPhotoButton = new QPushButton(QStringLiteral("打开原图"), photoBox);
+    photoButtons->addWidget(addPhotoButton);
+    photoButtons->addWidget(removePhotoButton);
+    photoButtons->addWidget(openPhotoButton);
+    photoButtons->addStretch();
+    photoLayout->addLayout(photoButtons);
+    outer->addWidget(photoBox);
+
+    connect(addPhotoButton, &QPushButton::clicked, this, &SpeciesForm::addPhotos);
+    connect(removePhotoButton, &QPushButton::clicked, this, &SpeciesForm::removeSelectedPhotos);
+    connect(openPhotoButton, &QPushButton::clicked, this, &SpeciesForm::openSelectedPhoto);
+    connect(m_photoList, &QListWidget::currentItemChanged,
+            this, &SpeciesForm::onPhotoSelectionChanged);
+
+    // ---------------- 身份与描述 ----------------
+    auto* identityBox = new QGroupBox(QStringLiteral("身份与描述"), content);
     auto* identityForm = new QFormLayout(identityBox);
 
     m_latinEdit = new QLineEdit(identityBox);
     m_latinEdit->setPlaceholderText(QStringLiteral("例：Rosa rugosa（全库唯一，不能重复）"));
     identityForm->addRow(QStringLiteral("拉丁学名："), m_latinEdit);
 
-    m_aliasEdit = new QLineEdit(identityBox);
-    m_aliasEdit->setPlaceholderText(QStringLiteral("多个别名用逗号分隔，如：玫瑰花, 徘徊花"));
-    identityForm->addRow(QStringLiteral("别名 / 俗名："), m_aliasEdit);
+    auto* aliasEditor = new QWidget(identityBox);
+    auto* aliasLayout = new QVBoxLayout(aliasEditor);
+    aliasLayout->setContentsMargins(0, 0, 0, 0);
+    m_aliasList = new QListWidget(aliasEditor);
+    m_aliasList->setMinimumHeight(70);
+    m_aliasList->setMaximumHeight(110);
+    m_aliasList->setToolTip(QStringLiteral("每个别名单独保存一条"));
+    aliasLayout->addWidget(m_aliasList);
+
+    auto* aliasButtons = new QHBoxLayout;
+    auto* addAliasButton = new QPushButton(QStringLiteral("添加别名…"), aliasEditor);
+    auto* removeAliasButton = new QPushButton(QStringLiteral("删除选中"), aliasEditor);
+    aliasButtons->addWidget(addAliasButton);
+    aliasButtons->addWidget(removeAliasButton);
+    aliasButtons->addStretch();
+    aliasLayout->addLayout(aliasButtons);
+    identityForm->addRow(QStringLiteral("别名 / 俗名："), aliasEditor);
+
+    connect(addAliasButton, &QPushButton::clicked, this, &SpeciesForm::addAlias);
+    connect(removeAliasButton, &QPushButton::clicked,
+            this, &SpeciesForm::removeSelectedAlias);
 
     m_descriptionEdit = new QPlainTextEdit(identityBox);
     m_descriptionEdit->setPlaceholderText(QStringLiteral("在这里填写该物种的形态、分布、养护等自定义描述…"));
     m_descriptionEdit->setMinimumHeight(110);
     identityForm->addRow(QStringLiteral("自定义描述："), m_descriptionEdit);
-
-    auto* photoLayout = new QVBoxLayout;
-    m_photoList = new QListWidget(identityBox);
-    m_photoList->setIconSize(QSize(96, 96));
-    m_photoList->setViewMode(QListView::IconMode);
-    m_photoList->setResizeMode(QListView::Adjust);
-    m_photoList->setMovement(QListView::Static);
-    m_photoList->setMinimumHeight(150);
-    m_photoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
-
-    auto* photoButtons = new QHBoxLayout;
-    auto* addPhotoButton = new QPushButton(QStringLiteral("添加照片…"), identityBox);
-    auto* removePhotoButton = new QPushButton(QStringLiteral("从资料移除"), identityBox);
-    auto* openPhotoButton = new QPushButton(QStringLiteral("打开原图"), identityBox);
-    photoButtons->addWidget(addPhotoButton);
-    photoButtons->addWidget(removePhotoButton);
-    photoButtons->addWidget(openPhotoButton);
-    photoButtons->addStretch();
-
-    photoLayout->addWidget(m_photoList);
-    photoLayout->addLayout(photoButtons);
-    identityForm->addRow(QStringLiteral("照片："), photoLayout);
     outer->addWidget(identityBox);
-
-    connect(addPhotoButton, &QPushButton::clicked, this, &SpeciesForm::addPhotos);
-    connect(removePhotoButton, &QPushButton::clicked, this, &SpeciesForm::removeSelectedPhotos);
-    connect(openPhotoButton, &QPushButton::clicked, this, &SpeciesForm::openSelectedPhoto);
 
     // ---------------- 环境需求 ----------------
     auto* envBox = new QGroupBox(QStringLiteral("环境需求"), content);
@@ -228,7 +292,8 @@ QWidget* SpeciesForm::buildFormPage()
     auto* tempMinBox = new QSpinBox(envBox);
     auto* tempMaxBox = new QSpinBox(envBox);
     for (auto* spin : { tempMinBox, tempMaxBox }) {
-        spin->setRange(-60, 60);
+        spin->setRange(-100, 100);
+        spin->setSpecialValueText(QStringLiteral("未填写"));
         spin->setSuffix(QStringLiteral(" ℃"));
     }
     envGrid->addWidget(tempMinBox, row, 1);
@@ -242,6 +307,7 @@ QWidget* SpeciesForm::buildFormPage()
     auto* humidityMax = new QSpinBox(envBox);
     for (auto* spin : { humidityMin, humidityMax }) {
         spin->setRange(0, 100);
+        spin->setSpecialValueText(QStringLiteral("未填写"));
         spin->setSuffix(QStringLiteral(" %"));
     }
     envGrid->addWidget(humidityMin, row, 1);
@@ -255,6 +321,7 @@ QWidget* SpeciesForm::buildFormPage()
     auto* phMax = new QDoubleSpinBox(envBox);
     for (auto* spin : { phMin, phMax }) {
         spin->setRange(0.0, 14.0);
+        spin->setSpecialValueText(QStringLiteral("未填写"));
         spin->setDecimals(1);
         spin->setSingleStep(0.1);
     }
@@ -407,11 +474,17 @@ QWidget* SpeciesForm::buildFormPage()
     connect(addCustomButton, &QPushButton::clicked, this, &SpeciesForm::addCustomProperty);
     connect(removeCustomButton, &QPushButton::clicked, this, &SpeciesForm::removeCustomProperty);
 
-    // ---------------- 保存 ----------------
-    auto* saveButton = new QPushButton(QStringLiteral("保存当前物种资料"), content);
-    saveButton->setMinimumHeight(34);
-    outer->addWidget(saveButton);
-    connect(saveButton, &QPushButton::clicked, this, &SpeciesForm::requestSave);
+    // 下拉菜单和数字输入框悬停时不再响应鼠标滚轮，避免误改选项。
+    auto* wheelGuard = new WheelIgnoreFilter(content);
+    for (QComboBox* combo : content->findChildren<QComboBox*>())
+        combo->installEventFilter(wheelGuard);
+    for (QAbstractSpinBox* spin : content->findChildren<QAbstractSpinBox*>()) {
+        spin->installEventFilter(wheelGuard);
+        for (QObject* child : spin->children()) {
+            if (auto* childWidget = qobject_cast<QWidget*>(child))
+                childWidget->installEventFilter(wheelGuard);
+        }
+    }
 
     scroll->setWidget(content);
     return scroll;
@@ -420,7 +493,11 @@ QWidget* SpeciesForm::buildFormPage()
 void SpeciesForm::populateFromInfo(const SpeciesInfo& info)
 {
     m_latinEdit->setText(info.scientificName);
-    m_aliasEdit->setText(info.aliases.join(QStringLiteral("，")));
+    m_aliasList->clear();
+    for (const QString& alias : info.aliases) {
+        if (!alias.trimmed().isEmpty())
+            m_aliasList->addItem(alias.trimmed());
+    }
     m_descriptionEdit->setPlainText(info.description);
 
     m_lightCombo->setCurrentIndex(comboIndexByKey(m_lightCombo, lightToKey(info.light)));
@@ -489,13 +566,12 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
 {
     out.scientificName = m_latinEdit->text().trimmed();
 
-    const QStringList rawAliases = m_aliasEdit->text().split(
-        QRegularExpression(QStringLiteral("[,，;；/]")), Qt::SkipEmptyParts);
     QStringList aliases;
-    for (const QString& alias : rawAliases) {
-        const QString clean = alias.trimmed();
-        if (!clean.isEmpty() && !aliases.contains(clean))
-            aliases.append(clean);
+    for (int i = 0; i < m_aliasList->count(); ++i) {
+        const QString alias =
+            m_aliasList->item(i)->text().trimmed();
+        if (!alias.isEmpty() && !aliases.contains(alias))
+            aliases.append(alias);
     }
     out.aliases = aliases;
     out.description = m_descriptionEdit->toPlainText();
@@ -583,11 +659,11 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
     return error.isEmpty();
 }
 
-void SpeciesForm::requestSave()
+bool SpeciesForm::requestSave()
 {
     if (!m_document || m_nodeId <= 0) {
         emit infoSaveError(QStringLiteral("尚未选择可编辑的物种节点。"));
-        return;
+        return false;
     }
 
     SpeciesInfo collected;
@@ -595,19 +671,69 @@ void SpeciesForm::requestSave()
     if (!collectFromForm(collected, error)) {
         QMessageBox::warning(this, QStringLiteral("无法保存"), error);
         emit infoSaveError(error);
-        return;
+        return false;
     }
 
     if (!m_document->setInfo(m_nodeId, collected, &error)) {
         QMessageBox::warning(this, QStringLiteral("无法保存"), error);
         emit infoSaveError(error);
-        return;
+        return false;
     }
 
     const SpeciesInfo* saved = m_document->infoOf(m_nodeId);
     if (saved)
         populateFromInfo(*saved);
     emit infoSaved();
+    return true;
+}
+
+void SpeciesForm::addAlias()
+{
+    bool ok = false;
+    const QString alias = QInputDialog::getText(
+        this, QStringLiteral("添加别名"),
+        QStringLiteral("请输入一个别名 / 俗名（每次只添加一条，例如：玫瑰花）："),
+        QLineEdit::Normal, QString(), &ok).trimmed();
+    if (!ok || alias.isEmpty())
+        return;
+
+    if (alias.contains(QRegularExpression(QStringLiteral("[,，;；/、]")))) {
+        QMessageBox::warning(
+            this, QStringLiteral("请逐条添加"),
+            QStringLiteral("一个别名只填一条，请不要在里面使用逗号、分号或斜杠分隔。"));
+        return;
+    }
+
+    for (int i = 0; i < m_aliasList->count(); ++i) {
+        if (m_aliasList->item(i)->text().trimmed() == alias) {
+            m_aliasList->setCurrentRow(i);
+            return;
+        }
+    }
+    m_aliasList->addItem(alias);
+    m_aliasList->setCurrentRow(m_aliasList->count() - 1);
+}
+
+void SpeciesForm::removeSelectedAlias()
+{
+    const int row = m_aliasList->currentRow();
+    if (row >= 0)
+        delete m_aliasList->takeItem(row);
+}
+
+bool SpeciesForm::hasUnsavedChanges() const
+{
+    if (!m_document || m_nodeId <= 0)
+        return false;
+
+    const TaxonNode* n = m_document->node(m_nodeId);
+    const SpeciesInfo baseline =
+        (n && n->hasInfo) ? n->info : SpeciesInfo();
+    SpeciesInfo current;
+    QString error;
+    if (!collectFromForm(current, error))
+        return true;
+    return !(current == baseline);
 }
 
 QString SpeciesForm::resolvePhotoPath(const QString& relativeName) const
@@ -620,19 +746,76 @@ QString SpeciesForm::resolvePhotoPath(const QString& relativeName) const
 void SpeciesForm::refreshPhotoList(const SpeciesInfo& info)
 {
     m_photoList->clear();
+    QString firstPhoto;
     for (const QString& relativeName : info.photos) {
         const QString fullPath = resolvePhotoPath(relativeName);
         auto* item = new QListWidgetItem(QFileInfo(relativeName).fileName());
         item->setData(Qt::UserRole, relativeName);
         item->setToolTip(fullPath);
         QPixmap pixmap(fullPath);
-        if (!pixmap.isNull())
+        if (!pixmap.isNull()) {
             item->setIcon(QIcon(pixmap.scaled(
-                QSize(96, 96), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
-        else
+                QSize(88, 88), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+        } else {
             item->setText(relativeName + QStringLiteral("（缺失）"));
+        }
+        if (firstPhoto.isEmpty())
+            firstPhoto = relativeName;
         m_photoList->addItem(item);
     }
+
+    // 有照片时默认高亮第一张并展示；没有则显示占位提示。
+    if (m_photoList->count() > 0) {
+        const QSignalBlocker blocker(m_photoList);
+        m_photoList->setCurrentRow(0);
+    }
+    setPhotoPreview(firstPhoto);
+}
+
+void SpeciesForm::onPhotoSelectionChanged(QListWidgetItem* current,
+                                         QListWidgetItem* previous)
+{
+    Q_UNUSED(previous);
+    if (m_loading)
+        return;
+    setPhotoPreview(current ? current->data(Qt::UserRole).toString() : QString());
+}
+
+void SpeciesForm::setPhotoPreview(const QString& relativeName)
+{
+    if (relativeName.isEmpty()) {
+        m_photoPreviewOriginal = QPixmap();
+    } else {
+        const QPixmap loaded(resolvePhotoPath(relativeName));
+        m_photoPreviewOriginal = loaded.isNull() ? QPixmap() : loaded;
+    }
+    updatePhotoPreview();
+}
+
+void SpeciesForm::updatePhotoPreview()
+{
+    if (!m_photoPreview)
+        return;
+
+    if (m_photoPreviewOriginal.isNull()) {
+        m_photoPreview->setText(QStringLiteral("暂无照片\n\n"
+                                               "可点击下方“添加照片…”为这个植物配图。"));
+        m_photoPreview->setPixmap(QPixmap());
+        return;
+    }
+
+    QSize area = m_photoPreview->contentsRect().size();
+    if (area.width() <= 0 || area.height() <= 0)
+        area = m_photoPreview->size();
+    m_photoPreview->setText(QString());
+    m_photoPreview->setPixmap(m_photoPreviewOriginal.scaled(
+        area, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+}
+
+void SpeciesForm::resizeEvent(QResizeEvent* event)
+{
+    updatePhotoPreview();
+    QWidget::resizeEvent(event);
 }
 
 void SpeciesForm::addPhotos()

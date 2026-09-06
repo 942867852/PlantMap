@@ -15,15 +15,18 @@ cmake --build build
 ## 运行
 
 ```bash
-./build/PlantMap.exe --data-dir <数据目录>
+./bin/PlantMap.exe --data-dir <数据目录>
 ```
 
-不传 `--data-dir` 时默认写入源码目录下的 `data/`（开发期方便查看）。
+编译后的可执行文件统一输出到项目根目录的 `bin/`，并已自动带上 Qt 运行库，
+可以直接双击 `bin/PlantMap.exe` 查看。不传 `--data-dir` 时，程序在可执行文件
+同级目录的 `bin/data/` 下读写数据库（JSON + 照片）。把整个 `bin/` 文件夹复制到
+另一台电脑即可连同数据库一起运行。
 
 ## 自检
 
 ```bash
-./build/plantmap_selftest.exe
+./bin/plantmap_selftest.exe
 ```
 
 自检覆盖：分类链逐级插入、拉丁学名全局查重、节点删除、JSON 往返一致性。
@@ -32,9 +35,9 @@ cmake --build build
 
 ```
 src/core/        数据模型（纯 QtCore，无界面依赖）
-src/ui/          Qt Widgets 界面
+src/ui/          Qt Widgets 界面（只读详情页 + 编辑窗口）
 tests/           命令行自检
-data/            运行时数据（JSON + 照片），可随时清空重建
+bin/data/        运行时数据库（JSON + 照片），与 exe 放在一起
 ```
 
 详细设计见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)。

@@ -114,12 +114,12 @@ struct SpeciesInfo {
     // ---- 环境需求 ----
     LightPreference light = LightPreference::Unknown;
     WaterPreference water = WaterPreference::Unknown;
-    int temperatureMinC = 15;    // ℃
-    int temperatureMaxC = 30;
-    int humidityMinPct = 40;     // %
-    int humidityMaxPct = 70;
-    double phMin = 5.5;
-    double phMax = 7.5;
+    int temperatureMinC = -100;  // ℃，-100 表示未填写
+    int temperatureMaxC = -100;
+    int humidityMinPct = 0;      // %，0 表示未填写
+    int humidityMaxPct = 0;
+    double phMin = 0.0;          // 0 表示未填写
+    double phMax = 0.0;
     QSet<QString> soilTypes;     // predefinedSoilTypes() 的子集
     int hardinessZoneLow = 0;    // USDA 耐寒区，0 表示未填写
     int hardinessZoneHigh = 0;
@@ -145,6 +145,11 @@ struct SpeciesInfo {
 
     bool hasScientificName() const;
     bool isEmpty() const;
+    bool operator==(const SpeciesInfo& other) const;
+    bool operator!=(const SpeciesInfo& other) const
+    {
+        return !(*this == other);
+    }
 
     QJsonObject toJson() const;
     static SpeciesInfo fromJson(const QJsonObject& obj);

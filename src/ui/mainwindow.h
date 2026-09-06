@@ -3,9 +3,13 @@
 #include <QMainWindow>
 #include <QCloseEvent>
 
-#include "speciesform.h"
+#include "speciesview.h"
 #include "taxondocument.h"
 
+class QLabel;
+class QLineEdit;
+class QListWidget;
+class QListWidgetItem;
 class QTreeWidget;
 class QTreeWidgetItem;
 class QAction;
@@ -23,6 +27,8 @@ protected:
 
 private slots:
     void onTreeSelectionChanged();
+    void onSearchTextChanged(const QString& text);
+    void openSpeciesEditor();
     void addUnderSelected();
     void renameSelected();
     void removeSelected();
@@ -35,13 +41,19 @@ private:
     void refreshActionState();
     int selectedNodeId() const;
     int subtreeSize(int id) const;
+    void goToPlantFromSearch(QListWidgetItem* item);
     void showError(const QString& title, const QString& message);
     void setStatus(const QString& message);
 
     TaxonomyDocument* m_document = nullptr;
-    SpeciesForm* m_form = nullptr;
+    SpeciesViewForm* m_view = nullptr;
     QTreeWidget* m_tree = nullptr;
+    QLabel* m_treeCaption = nullptr;
+    QLineEdit* m_searchEdit = nullptr;
+    QLabel* m_searchCaption = nullptr;
+    QListWidget* m_searchResults = nullptr;
     QAction* m_addAction = nullptr;
+    QAction* m_editAction = nullptr;
     QAction* m_renameAction = nullptr;
     QAction* m_deleteAction = nullptr;
     QAction* m_saveAction = nullptr;

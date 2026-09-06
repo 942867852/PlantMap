@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QPixmap>
 #include <QWidget>
 #include <QVector>
 
@@ -9,6 +10,7 @@ class QLabel;
 class QLineEdit;
 class QPlainTextEdit;
 class QListWidget;
+class QListWidgetItem;
 class QComboBox;
 class QSpinBox;
 class QDoubleSpinBox;
@@ -16,8 +18,10 @@ class QCheckBox;
 class QPushButton;
 class QTableWidget;
 class QStackedWidget;
+class QScrollArea;
+class QResizeEvent;
 
-// 单个“种 / 亚种”节点的资料编辑表单。
+// 单个“种 / 亚种”节点的资料编辑表单（在独立编辑窗口中打开）。
 // 负责把 SpeciesInfo 显示成控件，并在“保存”时回写 TaxonomyDocument。
 class SpeciesForm : public QWidget
 {
@@ -28,6 +32,10 @@ public:
 
     void setDocument(TaxonomyDocument* document);
     void setDataDir(const QString& path);
+    // 把当前表单内容保存到文档；成功返回 true，失败弹窗提示并返回 false。
+    bool requestSave();
+    // 与文档中已保存的资料对比，判断当前表单是否有未保存改动。
+    bool hasUnsavedChanges() const;
 
     // id <= 0 时清空；非种/亚种节点显示提示页
     void showNode(int id);
@@ -38,17 +46,22 @@ signals:
     void infoSaveError(const QString& message);
 
 private slots:
-    void requestSave();
+    void addAlias();
+    void removeSelectedAlias();
     void addPhotos();
     void removeSelectedPhotos();
     void openSelectedPhoto();
     void addCustomProperty();
     void removeCustomProperty();
+    void onPhotoSelectionChanged(QListWidgetItem* current, QListWidgetItem* previous);
 
 private:
     QWidget* buildFormPage();
     QWidget* buildHintPage();
     void markEdited();
+    void setPhotoPreview(const QString& relativeName);
+    void updatePhotoPreview();
+    void resizeEvent(QResizeEvent* event) override;
 
     bool collectFromForm(SpeciesInfo& out, QString& error) const;
     void populateFromInfo(const SpeciesInfo& info);
@@ -64,12 +77,15 @@ private:
     bool m_loading = false;
 
     QStackedWidget* m_stack = nullptr;
+    QScrollArea* m_formScroll = nullptr;
     QLabel* m_hintLabel = nullptr;
     QLabel* m_pathLabel = nullptr;
+    QLabel* m_photoPreview = nullptr;
+    QPixmap m_photoPreviewOriginal;
 
     // 身份与描述
     QLineEdit* m_latinEdit = nullptr;
-    QLineEdit* m_aliasEdit = nullptr;
+    QListWidget* m_aliasList = nullptr;
     QPlainTextEdit* m_descriptionEdit = nullptr;
     QListWidget* m_photoList = nullptr;
 

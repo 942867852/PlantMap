@@ -12,12 +12,8 @@ QString defaultDataDir()
     if (!env.isEmpty())
         return QString::fromLocal8Bit(env);
 
-#ifdef PLANTMAP_SOURCE_DATA_DIR
-    return QStringLiteral(PLANTMAP_SOURCE_DATA_DIR);
-#else
     return QDir(QCoreApplication::applicationDirPath())
         .filePath(QStringLiteral("data"));
-#endif
 }
 
 } // namespace
@@ -32,7 +28,8 @@ int main(int argc, char* argv[])
     parser.setApplicationDescription(QStringLiteral("植物图谱 PlantMap"));
     parser.addHelpOption();
     parser.addOption({ QStringLiteral("data-dir"),
-                       QStringLiteral("数据目录（默认：源码 data/ 或环境变量 PLANTMAP_DATA_DIR）"),
+                       QStringLiteral("数据目录（默认：exe 同级 data/ "
+                                      "或环境变量 PLANTMAP_DATA_DIR）"),
                        QStringLiteral("path") });
     parser.process(app);
 
