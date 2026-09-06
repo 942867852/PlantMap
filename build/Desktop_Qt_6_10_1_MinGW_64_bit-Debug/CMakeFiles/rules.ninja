@@ -14,6 +14,25 @@
 #############################################
 # Rule for compiling CXX files.
 
+rule CXX_COMPILER__plantcore_unscanned_Debug
+  depfile = $DEP_FILE
+  deps = gcc
+  command = ${LAUNCHER}${CODE_CHECK}D:\Qt\Tools\mingw1310_64\bin\g++.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
+  description = Building CXX object $out
+
+
+#############################################
+# Rule for linking CXX static library.
+
+rule CXX_STATIC_LIBRARY_LINKER__plantcore_Debug
+  command = C:\Windows\system32\cmd.exe /C "$PRE_LINK && D:\Qt\Tools\CMake_64\bin\cmake.exe -E rm -f $TARGET_FILE && D:\Qt\Tools\mingw1310_64\bin\ar.exe qc $TARGET_FILE $LINK_FLAGS $in && D:\Qt\Tools\mingw1310_64\bin\ranlib.exe $TARGET_FILE && $POST_BUILD"
+  description = Linking CXX static library $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling CXX files.
+
 rule CXX_COMPILER__PlantMap_unscanned_Debug
   depfile = $DEP_FILE
   deps = gcc
@@ -25,6 +44,25 @@ rule CXX_COMPILER__PlantMap_unscanned_Debug
 # Rule for linking CXX executable.
 
 rule CXX_EXECUTABLE_LINKER__PlantMap_Debug
+  command = C:\Windows\system32\cmd.exe /C "$PRE_LINK && D:\Qt\Tools\mingw1310_64\bin\g++.exe $FLAGS $LINK_FLAGS $in -o $TARGET_FILE -Wl,--out-implib,$TARGET_IMPLIB -Wl,--major-image-version,0,--minor-image-version,0 $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
+  description = Linking CXX executable $TARGET_FILE
+  restat = $RESTAT
+
+
+#############################################
+# Rule for compiling CXX files.
+
+rule CXX_COMPILER__plantmap_selftest_unscanned_Debug
+  depfile = $DEP_FILE
+  deps = gcc
+  command = ${LAUNCHER}${CODE_CHECK}D:\Qt\Tools\mingw1310_64\bin\g++.exe $DEFINES $INCLUDES $FLAGS -MD -MT $out -MF $DEP_FILE -o $out -c $in
+  description = Building CXX object $out
+
+
+#############################################
+# Rule for linking CXX executable.
+
+rule CXX_EXECUTABLE_LINKER__plantmap_selftest_Debug
   command = C:\Windows\system32\cmd.exe /C "$PRE_LINK && D:\Qt\Tools\mingw1310_64\bin\g++.exe $FLAGS $LINK_FLAGS $in -o $TARGET_FILE -Wl,--out-implib,$TARGET_IMPLIB -Wl,--major-image-version,0,--minor-image-version,0 $LINK_PATH $LINK_LIBRARIES && $POST_BUILD"
   description = Linking CXX executable $TARGET_FILE
   restat = $RESTAT

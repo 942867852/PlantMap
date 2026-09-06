@@ -41,93 +41,102 @@ include CMakeFiles/rules.ninja
 
 cmake_ninja_workdir = D$:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/
 # =============================================================================
+# Object build statements for STATIC_LIBRARY target plantcore
+
+
+#############################################
+# Order-only phony target for plantcore
+
+build cmake_object_order_depends_target_plantcore: phony || plantcore_autogen plantcore_autogen/mocs_compilation.cpp plantcore_autogen/timestamp plantcore_autogen_timestamp_deps
+
+build CMakeFiles/plantcore.dir/plantcore_autogen/mocs_compilation.cpp.obj: CXX_COMPILER__plantcore_unscanned_Debug D$:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/mocs_compilation.cpp || cmake_object_order_depends_target_plantcore
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\plantcore.dir\plantcore_autogen\mocs_compilation.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/include -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++
+  OBJECT_DIR = CMakeFiles\plantcore.dir
+  OBJECT_FILE_DIR = CMakeFiles\plantcore.dir\plantcore_autogen
+
+build CMakeFiles/plantcore.dir/src/core/taxonrank.cpp.obj: CXX_COMPILER__plantcore_unscanned_Debug D$:/QtProject/PlantMap/src/core/taxonrank.cpp || cmake_object_order_depends_target_plantcore
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\plantcore.dir\src\core\taxonrank.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/include -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++
+  OBJECT_DIR = CMakeFiles\plantcore.dir
+  OBJECT_FILE_DIR = CMakeFiles\plantcore.dir\src\core
+
+build CMakeFiles/plantcore.dir/src/core/speciesinfo.cpp.obj: CXX_COMPILER__plantcore_unscanned_Debug D$:/QtProject/PlantMap/src/core/speciesinfo.cpp || cmake_object_order_depends_target_plantcore
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\plantcore.dir\src\core\speciesinfo.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/include -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++
+  OBJECT_DIR = CMakeFiles\plantcore.dir
+  OBJECT_FILE_DIR = CMakeFiles\plantcore.dir\src\core
+
+build CMakeFiles/plantcore.dir/src/core/taxondocument.cpp.obj: CXX_COMPILER__plantcore_unscanned_Debug D$:/QtProject/PlantMap/src/core/taxondocument.cpp || cmake_object_order_depends_target_plantcore
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\plantcore.dir\src\core\taxondocument.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/include -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++
+  OBJECT_DIR = CMakeFiles\plantcore.dir
+  OBJECT_FILE_DIR = CMakeFiles\plantcore.dir\src\core
+
+
+# =============================================================================
+# Link build statements for STATIC_LIBRARY target plantcore
+
+
+#############################################
+# Link the static library libplantcore.a
+
+build libplantcore.a: CXX_STATIC_LIBRARY_LINKER__plantcore_Debug CMakeFiles/plantcore.dir/plantcore_autogen/mocs_compilation.cpp.obj CMakeFiles/plantcore.dir/src/core/taxonrank.cpp.obj CMakeFiles/plantcore.dir/src/core/speciesinfo.cpp.obj CMakeFiles/plantcore.dir/src/core/taxondocument.cpp.obj || plantcore_autogen plantcore_autogen_timestamp_deps
+  LANGUAGE_COMPILE_FLAGS = -DQT_QML_DEBUG -g
+  OBJECT_DIR = CMakeFiles\plantcore.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = libplantcore.a
+  TARGET_PDB = plantcore.a.dbg
+
+# =============================================================================
 # Object build statements for EXECUTABLE target PlantMap
 
 
 #############################################
 # Order-only phony target for PlantMap
 
-build cmake_object_order_depends_target_PlantMap: phony || PlantMap_autogen PlantMap_autogen/mocs_compilation.cpp PlantMap_autogen/timestamp PlantMap_autogen_timestamp_deps
+build cmake_object_order_depends_target_PlantMap: phony || PlantMap_autogen PlantMap_autogen/mocs_compilation.cpp PlantMap_autogen/timestamp PlantMap_autogen_timestamp_deps cmake_object_order_depends_target_plantcore
 
 build CMakeFiles/PlantMap.dir/PlantMap_autogen/mocs_compilation.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/mocs_compilation.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DPLANTMAP_SOURCE_DATA_DIR=\"D:/QtProject/PlantMap/data\" -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
   DEP_FILE = CMakeFiles\PlantMap.dir\PlantMap_autogen\mocs_compilation.cpp.obj.d
   FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -ID:/QtProject/PlantMap/src -ID:/QtProject/PlantMap/src/ui -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
   OBJECT_DIR = CMakeFiles\PlantMap.dir
   OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir\PlantMap_autogen
 
-build CMakeFiles/PlantMap.dir/main.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/main.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\main.cpp.obj.d
+build CMakeFiles/PlantMap.dir/src/main.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/src/main.cpp || cmake_object_order_depends_target_PlantMap
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DPLANTMAP_SOURCE_DATA_DIR=\"D:/QtProject/PlantMap/data\" -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\PlantMap.dir\src\main.cpp.obj.d
   FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -ID:/QtProject/PlantMap/src -ID:/QtProject/PlantMap/src/ui -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
   OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
+  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir\src
 
-build CMakeFiles/PlantMap.dir/mainwindow.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/mainwindow.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\mainwindow.cpp.obj.d
+build CMakeFiles/PlantMap.dir/src/ui/mainwindow.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/src/ui/mainwindow.cpp || cmake_object_order_depends_target_PlantMap
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DPLANTMAP_SOURCE_DATA_DIR=\"D:/QtProject/PlantMap/data\" -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\PlantMap.dir\src\ui\mainwindow.cpp.obj.d
   FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -ID:/QtProject/PlantMap/src -ID:/QtProject/PlantMap/src/ui -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
   OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
+  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir\src\ui
 
-build CMakeFiles/PlantMap.dir/planttraits.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/planttraits.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\planttraits.cpp.obj.d
+build CMakeFiles/PlantMap.dir/src/ui/speciesform.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/src/ui/speciesform.cpp || cmake_object_order_depends_target_PlantMap
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DPLANTMAP_SOURCE_DATA_DIR=\"D:/QtProject/PlantMap/data\" -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\PlantMap.dir\src\ui\speciesform.cpp.obj.d
   FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -ID:/QtProject/PlantMap/src -ID:/QtProject/PlantMap/src/ui -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
   OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
-
-build CMakeFiles/PlantMap.dir/plant.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/plant.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\plant.cpp.obj.d
-  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
-  OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
-
-build CMakeFiles/PlantMap.dir/traitregistry.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/traitregistry.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\traitregistry.cpp.obj.d
-  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
-  OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
-
-build CMakeFiles/PlantMap.dir/plantmanager.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/plantmanager.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\plantmanager.cpp.obj.d
-  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
-  OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
-
-build CMakeFiles/PlantMap.dir/addplantpage.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/addplantpage.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\addplantpage.cpp.obj.d
-  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
-  OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
-
-build CMakeFiles/PlantMap.dir/searchplantpage.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/searchplantpage.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\searchplantpage.cpp.obj.d
-  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
-  OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
-
-build CMakeFiles/PlantMap.dir/taxonomy.cpp.obj: CXX_COMPILER__PlantMap_unscanned_Debug D$:/QtProject/PlantMap/taxonomy.cpp || cmake_object_order_depends_target_PlantMap
-  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NEEDS_QMAIN -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
-  DEP_FILE = CMakeFiles\PlantMap.dir\taxonomy.cpp.obj.d
-  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
-  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/include -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++ -isystem D:/Qt/6.10.1/mingw_64/include/QtWidgets -isystem D:/Qt/6.10.1/mingw_64/include/QtGui
-  OBJECT_DIR = CMakeFiles\PlantMap.dir
-  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir
+  OBJECT_FILE_DIR = CMakeFiles\PlantMap.dir\src\ui
 
 
 # =============================================================================
@@ -137,16 +146,59 @@ build CMakeFiles/PlantMap.dir/taxonomy.cpp.obj: CXX_COMPILER__PlantMap_unscanned
 #############################################
 # Link the executable PlantMap.exe
 
-build PlantMap.exe: CXX_EXECUTABLE_LINKER__PlantMap_Debug CMakeFiles/PlantMap.dir/PlantMap_autogen/mocs_compilation.cpp.obj CMakeFiles/PlantMap.dir/main.cpp.obj CMakeFiles/PlantMap.dir/mainwindow.cpp.obj CMakeFiles/PlantMap.dir/planttraits.cpp.obj CMakeFiles/PlantMap.dir/plant.cpp.obj CMakeFiles/PlantMap.dir/traitregistry.cpp.obj CMakeFiles/PlantMap.dir/plantmanager.cpp.obj CMakeFiles/PlantMap.dir/addplantpage.cpp.obj CMakeFiles/PlantMap.dir/searchplantpage.cpp.obj CMakeFiles/PlantMap.dir/taxonomy.cpp.obj | D$:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Core.a D$:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a || PlantMap_autogen PlantMap_autogen_timestamp_deps
+build PlantMap.exe: CXX_EXECUTABLE_LINKER__PlantMap_Debug CMakeFiles/PlantMap.dir/PlantMap_autogen/mocs_compilation.cpp.obj CMakeFiles/PlantMap.dir/src/main.cpp.obj CMakeFiles/PlantMap.dir/src/ui/mainwindow.cpp.obj CMakeFiles/PlantMap.dir/src/ui/speciesform.cpp.obj | libplantcore.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Core.a D$:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a || PlantMap_autogen PlantMap_autogen_timestamp_deps libplantcore.a
   FLAGS = -DQT_QML_DEBUG -g
   LINK_FLAGS = -mwindows
-  LINK_LIBRARIES = D:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Core.a  -lmpr  -luserenv  -lmingw32  D:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a  -lshell32  -ld3d11  -ldxgi  -ldxguid  -ld3d12  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  LINK_LIBRARIES = libplantcore.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Widgets.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Gui.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Core.a  -lmpr  -luserenv  -lmingw32  D:/Qt/6.10.1/mingw_64/lib/libQt6EntryPoint.a  -lshell32  -ld3d11  -ldxgi  -ldxguid  -ld3d12  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\PlantMap.dir
   POST_BUILD = cd .
   PRE_LINK = cd .
   TARGET_FILE = PlantMap.exe
   TARGET_IMPLIB = libPlantMap.dll.a
   TARGET_PDB = PlantMap.exe.dbg
+
+# =============================================================================
+# Object build statements for EXECUTABLE target plantmap_selftest
+
+
+#############################################
+# Order-only phony target for plantmap_selftest
+
+build cmake_object_order_depends_target_plantmap_selftest: phony || cmake_object_order_depends_target_plantcore plantmap_selftest_autogen plantmap_selftest_autogen/mocs_compilation.cpp plantmap_selftest_autogen/timestamp plantmap_selftest_autogen_timestamp_deps
+
+build CMakeFiles/plantmap_selftest.dir/plantmap_selftest_autogen/mocs_compilation.cpp.obj: CXX_COMPILER__plantmap_selftest_unscanned_Debug D$:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantmap_selftest_autogen/mocs_compilation.cpp || cmake_object_order_depends_target_plantmap_selftest
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\plantmap_selftest.dir\plantmap_selftest_autogen\mocs_compilation.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantmap_selftest_autogen/include -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++
+  OBJECT_DIR = CMakeFiles\plantmap_selftest.dir
+  OBJECT_FILE_DIR = CMakeFiles\plantmap_selftest.dir\plantmap_selftest_autogen
+
+build CMakeFiles/plantmap_selftest.dir/tests/selftest.cpp.obj: CXX_COMPILER__plantmap_selftest_unscanned_Debug D$:/QtProject/PlantMap/tests/selftest.cpp || cmake_object_order_depends_target_plantmap_selftest
+  DEFINES = -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64
+  DEP_FILE = CMakeFiles\plantmap_selftest.dir\tests\selftest.cpp.obj.d
+  FLAGS = -DQT_QML_DEBUG -g -std=gnu++17 -fdiagnostics-color=always
+  INCLUDES = -ID:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantmap_selftest_autogen/include -ID:/QtProject/PlantMap/src/core -isystem D:/Qt/6.10.1/mingw_64/include/QtCore -isystem D:/Qt/6.10.1/mingw_64/include -isystem D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++
+  OBJECT_DIR = CMakeFiles\plantmap_selftest.dir
+  OBJECT_FILE_DIR = CMakeFiles\plantmap_selftest.dir\tests
+
+
+# =============================================================================
+# Link build statements for EXECUTABLE target plantmap_selftest
+
+
+#############################################
+# Link the executable plantmap_selftest.exe
+
+build plantmap_selftest.exe: CXX_EXECUTABLE_LINKER__plantmap_selftest_Debug CMakeFiles/plantmap_selftest.dir/plantmap_selftest_autogen/mocs_compilation.cpp.obj CMakeFiles/plantmap_selftest.dir/tests/selftest.cpp.obj | libplantcore.a D$:/Qt/6.10.1/mingw_64/lib/libQt6Core.a || libplantcore.a plantmap_selftest_autogen plantmap_selftest_autogen_timestamp_deps
+  FLAGS = -DQT_QML_DEBUG -g
+  LINK_LIBRARIES = libplantcore.a  D:/Qt/6.10.1/mingw_64/lib/libQt6Core.a  -lmpr  -luserenv  -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
+  OBJECT_DIR = CMakeFiles\plantmap_selftest.dir
+  POST_BUILD = cd .
+  PRE_LINK = cd .
+  TARGET_FILE = plantmap_selftest.exe
+  TARGET_IMPLIB = libplantmap_selftest.dll.a
+  TARGET_PDB = plantmap_selftest.exe.dbg
 
 
 #############################################
@@ -216,21 +268,56 @@ build install/strip: phony CMakeFiles/install/strip.util
 
 
 #############################################
+# Utility command for plantcore_autogen_timestamp_deps
+
+build plantcore_autogen_timestamp_deps: phony
+
+
+#############################################
+# Utility command for plantcore_autogen
+
+build plantcore_autogen: phony CMakeFiles/plantcore_autogen plantcore_autogen/timestamp plantcore_autogen/mocs_compilation.cpp plantcore_autogen_timestamp_deps
+
+
+#############################################
 # Utility command for PlantMap_autogen_timestamp_deps
 
-build PlantMap_autogen_timestamp_deps: phony
+build PlantMap_autogen_timestamp_deps: phony libplantcore.a
 
 
 #############################################
 # Utility command for PlantMap_autogen
 
-build PlantMap_autogen: phony CMakeFiles/PlantMap_autogen PlantMap_autogen/include/ui_mainwindow.h PlantMap_autogen/include/ui_addplantpage.h PlantMap_autogen/include/ui_searchplantpage.h PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp PlantMap_autogen_timestamp_deps
+build PlantMap_autogen: phony CMakeFiles/PlantMap_autogen PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp PlantMap_autogen_timestamp_deps
+
+
+#############################################
+# Utility command for plantmap_selftest_autogen_timestamp_deps
+
+build plantmap_selftest_autogen_timestamp_deps: phony libplantcore.a
+
+
+#############################################
+# Utility command for plantmap_selftest_autogen
+
+build plantmap_selftest_autogen: phony CMakeFiles/plantmap_selftest_autogen plantmap_selftest_autogen/timestamp plantmap_selftest_autogen/mocs_compilation.cpp plantmap_selftest_autogen_timestamp_deps
+
+
+#############################################
+# Custom command for plantcore_autogen\timestamp
+
+build plantcore_autogen/timestamp plantcore_autogen/mocs_compilation.cpp | ${cmake_ninja_workdir}plantcore_autogen/timestamp ${cmake_ninja_workdir}plantcore_autogen/mocs_compilation.cpp: CUSTOM_COMMAND D$:/Qt/6.10.1/mingw_64/bin/moc.exe D$:/Qt/6.10.1/mingw_64/bin/uic.exe || plantcore_autogen_timestamp_deps
+  COMMAND = C:\Windows\system32\cmd.exe /C "cd /D D:\QtProject\PlantMap\build\Desktop_Qt_6_10_1_MinGW_64_bit-Debug && D:\Qt\Tools\CMake_64\bin\cmake.exe -E cmake_autogen D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/plantcore_autogen.dir/AutogenInfo.json Debug && D:\Qt\Tools\CMake_64\bin\cmake.exe -E touch D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/timestamp && D:\Qt\Tools\CMake_64\bin\cmake.exe -E cmake_transform_depfile Ninja gccdepfile D:/QtProject/PlantMap D:/QtProject/PlantMap D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/deps D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/d/71c4fb0ae5da00617d0b055811ec0f10a138bf9a1eaaab3ae25c23b1f116d67f.d"
+  DESC = Automatic MOC and UIC for target plantcore
+  depfile = CMakeFiles\d\71c4fb0ae5da00617d0b055811ec0f10a138bf9a1eaaab3ae25c23b1f116d67f.d
+  deps = gcc
+  restat = 1
 
 
 #############################################
 # Custom command for PlantMap_autogen\timestamp
 
-build PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp | ${cmake_ninja_workdir}PlantMap_autogen/timestamp ${cmake_ninja_workdir}PlantMap_autogen/mocs_compilation.cpp: CUSTOM_COMMAND D$:/Qt/6.10.1/mingw_64/bin/moc.exe D$:/Qt/6.10.1/mingw_64/bin/uic.exe || PlantMap_autogen_timestamp_deps
+build PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp | ${cmake_ninja_workdir}PlantMap_autogen/timestamp ${cmake_ninja_workdir}PlantMap_autogen/mocs_compilation.cpp: CUSTOM_COMMAND D$:/Qt/6.10.1/mingw_64/bin/moc.exe D$:/Qt/6.10.1/mingw_64/bin/uic.exe || PlantMap_autogen_timestamp_deps libplantcore.a plantcore_autogen plantcore_autogen_timestamp_deps
   COMMAND = C:\Windows\system32\cmd.exe /C "cd /D D:\QtProject\PlantMap\build\Desktop_Qt_6_10_1_MinGW_64_bit-Debug && D:\Qt\Tools\CMake_64\bin\cmake.exe -E cmake_autogen D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/PlantMap_autogen.dir/AutogenInfo.json Debug && D:\Qt\Tools\CMake_64\bin\cmake.exe -E touch D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/timestamp && D:\Qt\Tools\CMake_64\bin\cmake.exe -E cmake_transform_depfile Ninja gccdepfile D:/QtProject/PlantMap D:/QtProject/PlantMap D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/deps D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/d/13a7b9b7be6bfd1ede19be687b60109664375c65ff743f29de952e3248c9228d.d"
   DESC = Automatic MOC and UIC for target PlantMap
   depfile = CMakeFiles\d\13a7b9b7be6bfd1ede19be687b60109664375c65ff743f29de952e3248c9228d.d
@@ -239,14 +326,41 @@ build PlantMap_autogen/timestamp PlantMap_autogen/mocs_compilation.cpp | ${cmake
 
 
 #############################################
+# Custom command for plantmap_selftest_autogen\timestamp
+
+build plantmap_selftest_autogen/timestamp plantmap_selftest_autogen/mocs_compilation.cpp | ${cmake_ninja_workdir}plantmap_selftest_autogen/timestamp ${cmake_ninja_workdir}plantmap_selftest_autogen/mocs_compilation.cpp: CUSTOM_COMMAND D$:/Qt/6.10.1/mingw_64/bin/moc.exe D$:/Qt/6.10.1/mingw_64/bin/uic.exe || libplantcore.a plantcore_autogen plantcore_autogen_timestamp_deps plantmap_selftest_autogen_timestamp_deps
+  COMMAND = C:\Windows\system32\cmd.exe /C "cd /D D:\QtProject\PlantMap\build\Desktop_Qt_6_10_1_MinGW_64_bit-Debug && D:\Qt\Tools\CMake_64\bin\cmake.exe -E cmake_autogen D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/plantmap_selftest_autogen.dir/AutogenInfo.json Debug && D:\Qt\Tools\CMake_64\bin\cmake.exe -E touch D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantmap_selftest_autogen/timestamp && D:\Qt\Tools\CMake_64\bin\cmake.exe -E cmake_transform_depfile Ninja gccdepfile D:/QtProject/PlantMap D:/QtProject/PlantMap D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantmap_selftest_autogen/deps D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/d/ab52135e42fad7dd69ced99384e8c526d390037054b3a79cea4f8cc149329f95.d"
+  DESC = Automatic MOC and UIC for target plantmap_selftest
+  depfile = CMakeFiles\d\ab52135e42fad7dd69ced99384e8c526d390037054b3a79cea4f8cc149329f95.d
+  deps = gcc
+  restat = 1
+
+
+#############################################
+# Phony custom command for CMakeFiles\plantcore_autogen
+
+build CMakeFiles/plantcore_autogen | ${cmake_ninja_workdir}CMakeFiles/plantcore_autogen: phony plantcore_autogen/timestamp || plantcore_autogen_timestamp_deps
+
+
+#############################################
 # Phony custom command for CMakeFiles\PlantMap_autogen
 
-build CMakeFiles/PlantMap_autogen PlantMap_autogen/include/ui_mainwindow.h PlantMap_autogen/include/ui_addplantpage.h PlantMap_autogen/include/ui_searchplantpage.h | ${cmake_ninja_workdir}CMakeFiles/PlantMap_autogen ${cmake_ninja_workdir}PlantMap_autogen/include/ui_mainwindow.h ${cmake_ninja_workdir}PlantMap_autogen/include/ui_addplantpage.h ${cmake_ninja_workdir}PlantMap_autogen/include/ui_searchplantpage.h: phony PlantMap_autogen/timestamp || PlantMap_autogen_timestamp_deps
+build CMakeFiles/PlantMap_autogen | ${cmake_ninja_workdir}CMakeFiles/PlantMap_autogen: phony PlantMap_autogen/timestamp || PlantMap_autogen_timestamp_deps libplantcore.a plantcore_autogen plantcore_autogen_timestamp_deps
+
+
+#############################################
+# Phony custom command for CMakeFiles\plantmap_selftest_autogen
+
+build CMakeFiles/plantmap_selftest_autogen | ${cmake_ninja_workdir}CMakeFiles/plantmap_selftest_autogen: phony plantmap_selftest_autogen/timestamp || libplantcore.a plantcore_autogen plantcore_autogen_timestamp_deps plantmap_selftest_autogen_timestamp_deps
 
 # =============================================================================
 # Target aliases.
 
 build PlantMap: phony PlantMap.exe
+
+build plantcore: phony libplantcore.a
+
+build plantmap_selftest: phony plantmap_selftest.exe
 
 # =============================================================================
 # Folder targets.
@@ -256,7 +370,7 @@ build PlantMap: phony PlantMap.exe
 #############################################
 # Folder: D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug
 
-build all: phony PlantMap.exe
+build all: phony libplantcore.a PlantMap.exe plantmap_selftest.exe
 
 # =============================================================================
 # Built-in targets

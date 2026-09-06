@@ -31,6 +31,11 @@
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Platform/Windows-windres.cmake",
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/Platform/Windows-GNU-CXX-ABI.cmake",
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeCommonLanguageInclude.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfigVersion.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfigVersionImpl.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6/Qt6ConfigVersion.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6/Qt6ConfigVersionImpl.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6/Qt6Config.cmake",
@@ -86,6 +91,35 @@
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake",
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageHandleStandardArgs.cmake",
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageMessage.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6/FindWrapAtomic.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageHandleStandardArgs.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageMessage.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsConfigVersion.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsConfigVersionImpl.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsConfig.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsDependencies.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets-relwithdebinfo.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsAdditionalTargetInfo.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsVersionlessTargets.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateConfigVersion.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateConfigVersionImpl.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateConfig.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateTargets.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateTargets-relwithdebinfo.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateAdditionalTargetInfo.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointMinGW32Target.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateVersionlessAliasTargets.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreTargets.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreTargets-relwithdebinfo.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreAdditionalTargetInfo.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreMacros.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake",
+		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/GNUInstallDirs.cmake",
+		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreVersionlessAliasTargets.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Widgets/Qt6WidgetsConfigVersion.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Widgets/Qt6WidgetsConfigVersionImpl.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Widgets/Qt6WidgetsConfig.cmake",
@@ -102,7 +136,6 @@
 		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsDependencies.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets-relwithdebinfo.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsAdditionalTargetInfo.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsVersionlessTargets.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6GuiTools/Qt6GuiToolsConfigVersion.cmake",
@@ -126,39 +159,6 @@
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6WidgetsTools/Qt6WidgetsToolsTargets-relwithdebinfo.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6WidgetsTools/Qt6WidgetsToolsAdditionalTargetInfo.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6WidgetsTools/Qt6WidgetsToolsVersionlessTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfigVersion.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfigVersionImpl.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfig.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreDependencies.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6/FindWrapAtomic.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CheckCXXSourceCompiles.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageHandleStandardArgs.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/FindPackageMessage.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsConfigVersion.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsConfigVersionImpl.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsConfig.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsDependencies.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsAdditionalTargetInfo.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6CoreTools/Qt6CoreToolsVersionlessTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateConfigVersion.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateConfigVersionImpl.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateConfig.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/CMakeFindDependencyMacro.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateTargets-relwithdebinfo.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateAdditionalTargetInfo.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointMinGW32Target.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6EntryPointPrivate/Qt6EntryPointPrivateVersionlessAliasTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreTargets.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreTargets-relwithdebinfo.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreAdditionalTargetInfo.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreMacros.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreConfigExtras.cmake",
-		"D:/Qt/Tools/CMake_64/share/cmake-3.30/Modules/GNUInstallDirs.cmake",
-		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Core/Qt6CoreVersionlessAliasTargets.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Gui/Qt6GuiConfigVersion.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Gui/Qt6GuiConfigVersionImpl.cmake",
 		"D:/Qt/6.10.1/mingw_64/lib/cmake/Qt6Gui/Qt6GuiConfig.cmake",
@@ -316,51 +316,15 @@
 	"HEADERS" : 
 	[
 		[
-			"D:/QtProject/PlantMap/addplantpage.h",
+			"D:/QtProject/PlantMap/src/ui/mainwindow.h",
 			"MU",
-			"EWIEGA46WW/moc_addplantpage.cpp",
+			"YPKJ5OE7LN/moc_mainwindow.cpp",
 			null
 		],
 		[
-			"D:/QtProject/PlantMap/mainwindow.h",
+			"D:/QtProject/PlantMap/src/ui/speciesform.h",
 			"MU",
-			"EWIEGA46WW/moc_mainwindow.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/plant.h",
-			"MU",
-			"EWIEGA46WW/moc_plant.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/plantmanager.h",
-			"MU",
-			"EWIEGA46WW/moc_plantmanager.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/planttraits.h",
-			"MU",
-			"EWIEGA46WW/moc_planttraits.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/searchplantpage.h",
-			"MU",
-			"EWIEGA46WW/moc_searchplantpage.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/taxonomy.h",
-			"MU",
-			"EWIEGA46WW/moc_taxonomy.cpp",
-			null
-		],
-		[
-			"D:/QtProject/PlantMap/traitregistry.h",
-			"MU",
-			"EWIEGA46WW/moc_traitregistry.cpp",
+			"YPKJ5OE7LN/moc_speciesform.cpp",
 			null
 		]
 	],
@@ -370,6 +334,7 @@
 	"MOC_DEFINITIONS" : 
 	[
 		"MINGW_HAS_SECURE_API=1",
+		"PLANTMAP_SOURCE_DATA_DIR=\"D:/QtProject/PlantMap/data\"",
 		"QT_CORE_LIB",
 		"QT_GUI_LIB",
 		"QT_NEEDS_QMAIN",
@@ -390,6 +355,9 @@
 	],
 	"MOC_INCLUDES" : 
 	[
+		"D:/QtProject/PlantMap/src",
+		"D:/QtProject/PlantMap/src/ui",
+		"D:/QtProject/PlantMap/src/core",
 		"D:/Qt/6.10.1/mingw_64/include/QtCore",
 		"D:/Qt/6.10.1/mingw_64/include",
 		"D:/Qt/6.10.1/mingw_64/mkspecs/win32-g++",
@@ -424,7 +392,10 @@
 	],
 	"MOC_PREDEFS_FILE" : "D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/PlantMap_autogen/moc_predefs.h",
 	"MOC_RELAXED_MODE" : false,
-	"MOC_SKIP" : [],
+	"MOC_SKIP" : 
+	[
+		"D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/mocs_compilation.cpp"
+	],
 	"MULTI_CONFIG" : false,
 	"PARALLEL" : 10,
 	"PARSE_CACHE_FILE" : "D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/PlantMap_autogen.dir/ParseCache.txt",
@@ -435,19 +406,16 @@
 	"SETTINGS_FILE" : "D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/CMakeFiles/PlantMap_autogen.dir/AutogenUsed.txt",
 	"SOURCES" : 
 	[
-		[ "D:/QtProject/PlantMap/addplantpage.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/main.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/mainwindow.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/plant.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/plantmanager.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/planttraits.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/searchplantpage.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/taxonomy.cpp", "MU", null ],
-		[ "D:/QtProject/PlantMap/traitregistry.cpp", "MU", null ]
+		[ "D:/QtProject/PlantMap/src/main.cpp", "MU", null ],
+		[ "D:/QtProject/PlantMap/src/ui/mainwindow.cpp", "MU", null ],
+		[ "D:/QtProject/PlantMap/src/ui/speciesform.cpp", "MU", null ]
 	],
 	"UIC_OPTIONS" : [],
 	"UIC_SEARCH_PATHS" : [],
-	"UIC_SKIP" : [],
+	"UIC_SKIP" : 
+	[
+		"D:/QtProject/PlantMap/build/Desktop_Qt_6_10_1_MinGW_64_bit-Debug/plantcore_autogen/mocs_compilation.cpp"
+	],
 	"UIC_UI_FILES" : [],
 	"USE_BETTER_GRAPH" : true,
 	"VERBOSITY" : 0
