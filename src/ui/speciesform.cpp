@@ -58,6 +58,23 @@ QCheckBox* makeMonthCheckBox(int month)
     return box;
 }
 
+// 把源文件名清洗成安全的“文件名片段”：只保留字母、数字、下划线、
+// 连字符和点，其余字符替换为下划线，避免生成含空格或特殊字符的文件名。
+QString sanitizeBaseName(const QString& baseName)
+{
+    QString result;
+    result.reserve(baseName.size());
+    for (const QChar& ch : baseName) {
+        const ushort u = ch.unicode();
+        if (ch.isLetterOrNumber() || u == '_' || u == '-' || u == '.')
+            result.append(ch);
+        else
+            result.append(QLatin1Char('_'));
+    }
+    const QString trimmed = result.trimmed();
+    return trimmed.isEmpty() ? QStringLiteral("photo") : trimmed;
+}
+
 int comboIndexByKey(const QComboBox* combo, const QString& key)
 {
     const int index = combo->findData(key);
@@ -352,29 +369,30 @@ QWidget* SpeciesForm::buildFormPage()
     auto* growthForm = new QFormLayout(growthBox);
 
     m_habitCombo = new QComboBox(growthBox);
-    for (int i = 0; i <= static_cast<int>(GrowthHabit::Other); ++i) {
-        const auto value = static_cast<GrowthHabit>(i);
+    for (auto value : { GrowthHabit::Unknown, GrowthHabit::Tree, GrowthHabit::Shrub,
+                        GrowthHabit::Herb, GrowthHabit::Vine, GrowthHabit::Aquatic,
+                        GrowthHabit::Succulent, GrowthHabit::Fern, GrowthHabit::Other }) {
         m_habitCombo->addItem(habitLabel(value), habitToKey(value));
     }
     growthForm->addRow(QStringLiteral("生长习性："), m_habitCombo);
 
     m_lifecycleCombo = new QComboBox(growthBox);
-    for (int i = 0; i <= static_cast<int>(LifeCycle::Perennial); ++i) {
-        const auto value = static_cast<LifeCycle>(i);
+    for (auto value : { LifeCycle::Unknown, LifeCycle::Annual,
+                        LifeCycle::Biennial, LifeCycle::Perennial }) {
         m_lifecycleCombo->addItem(lifecycleLabel(value), lifecycleToKey(value));
     }
     growthForm->addRow(QStringLiteral("生命周期："), m_lifecycleCombo);
 
     m_foliageCombo = new QComboBox(growthBox);
-    for (int i = 0; i <= static_cast<int>(FoliageType::Deciduous); ++i) {
-        const auto value = static_cast<FoliageType>(i);
+    for (auto value : { FoliageType::Unknown, FoliageType::Evergreen,
+                        FoliageType::SemiEvergreen, FoliageType::Deciduous }) {
         m_foliageCombo->addItem(foliageLabel(value), foliageToKey(value));
     }
     growthForm->addRow(QStringLiteral("叶型："), m_foliageCombo);
 
     m_growthRateCombo = new QComboBox(growthBox);
-    for (int i = 0; i <= static_cast<int>(GrowthRate::Fast); ++i) {
-        const auto value = static_cast<GrowthRate>(i);
+    for (auto value : { GrowthRate::Unknown, GrowthRate::Slow,
+                        GrowthRate::Medium, GrowthRate::Fast }) {
         m_growthRateCombo->addItem(growthRateLabel(value), growthRateToKey(value));
     }
     growthForm->addRow(QStringLiteral("生长速度："), m_growthRateCombo);
@@ -852,7 +870,7 @@ void SpeciesForm::addPhotos()
     QStringList added;
     for (const QString& source : files) {
         const QFileInfo sourceInfo(source);
-        const QString base = sourceInfo.completeBaseName();
+        const QString base = sanitizeBaseName(sourceInfo.completeBaseName());
         const QString suffix = sourceInfo.suffix();
         const qint64 stamp = QDateTime::currentMSecsSinceEpoch();
 
@@ -978,9 +996,4 @@ void SpeciesForm::removeCustomProperty()
     const int row = m_customTable->currentRow();
     if (row >= 0)
         m_customTable->removeRow(row);
-}
-
-void SpeciesForm::markEdited()
-{
-    // 将来若改为“自动保存”，可在这里做防抖并触发 infoSaved。
 }

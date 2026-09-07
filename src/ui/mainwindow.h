@@ -4,6 +4,7 @@
 #include <QIcon>
 #include <QMainWindow>
 #include <QCloseEvent>
+#include <QSet>
 
 #include "speciesview.h"
 #include "taxondocument.h"
@@ -49,6 +50,12 @@ private:
     bool selectFirstPlantItem();
     void showError(const QString& title, const QString& message);
     void setStatus(const QString& message);
+    // 收集某节点子树内所有被引用的照片文件名（相对 photos/ 的文件名）。
+    QSet<QString> collectSubtreePhotos(int id) const;
+    // 收集整个文档当前所有被引用的照片文件名。
+    QSet<QString> collectAllReferencedPhotos() const;
+    // 删除某节点子树，并清理不再被任何节点引用的照片文件。
+    void removeSubtreeAndPhotos(int id);
 
     TaxonomyDocument* m_document = nullptr;
     SpeciesViewForm* m_view = nullptr;

@@ -5,3 +5,4 @@ data/photos/
 *.user
 *.rar
 .qtcreator/
+.workbuddy/

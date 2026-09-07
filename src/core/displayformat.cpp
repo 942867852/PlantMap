@@ -3,6 +3,8 @@
 #include <QStringList>
 #include <QtGlobal>
 
+#include <cmath>
+
 namespace DisplayFormat {
 
 QString joinMonths(const QVector<int>& months)
@@ -64,9 +66,23 @@ QString rangeText(int low, int high, const QString& suffix, int unknown)
     return QStringLiteral("%1%2 ~ %3%2").arg(low).arg(suffix).arg(high);
 }
 
+QString rangeTextDouble(double low, double high, const QString& suffix)
+{
+    if (low == 0.0 && high == 0.0)
+        return QStringLiteral("未填写");
+    if (low == 0.0)
+        return QStringLiteral("最高 %1%2").arg(formatOneDecimal(high)).arg(suffix);
+    if (high == 0.0)
+        return QStringLiteral("最低 %1%2").arg(formatOneDecimal(low)).arg(suffix);
+    return QStringLiteral("%1%2 ~ %3%2")
+        .arg(formatOneDecimal(low)).arg(suffix).arg(formatOneDecimal(high));
+}
+
 double roundOneDecimal(double value)
 {
-    return qRound(value * 10.0) / 10.0;
+    // 使用 std::round（四舍五入远离零）而非 qRound，保证正负数的 .5
+    // 舍入方向稳定一致，避免不同平台/版本下 qRound 的舍入差异。
+    return std::round(value * 10.0) / 10.0;
 }
 
 QString formatOneDecimal(double value)

@@ -25,6 +25,7 @@
 #include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
+#include <QList>
 #include <QListWidget>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -146,6 +147,13 @@ protected:
 
         // 即使当前表单与数据库一致（例如“添加后又移除”了某张照片），
         // 本会话复制进 photos/ 的文件也不能留下，否则会成为孤儿文件。
+        //
+        // 说明本清理与“保存成功”互斥，不会误删在用的照片：
+        //   - 保存成功走 requestSave() -> accept()，此时
+        //     sessionCopiedPhotoFiles() 已缩小为“仍被引用”的集合，
+        //     但窗口直接关闭，不会再进入本 reject()。
+        //   - 只有真正放弃修改时才会走到这里，此刻 session 里残留的
+        //     都是“复制了但最终没被资料引用”的文件，删掉是安全的。
         QStringList failedToRemove;
         for (const QString& relativeName
              : m_form->sessionCopiedPhotoFiles()) {
@@ -501,7 +509,7 @@ void MainWindow::onSearchTextChanged(const QString& text)
                            .contains(normalizedQuery)) {
                     matched = true;
                 }
-                if (!matched) {
+                if (!matched && n->hasInfo) {
                     for (const QString& alias : n->info.aliases) {
                         if (!alias.trimmed().isEmpty()
                             && alias.contains(query, Qt::CaseInsensitive)) {
@@ -833,46 +841,73 @@ void MainWindow::openAdvancedSearch()
         QStringLiteral("按植物属性精确检索（条件之间为“并且”关系）"), &dialog);
     auto* filterForm = new QFormLayout(filterBox);
 
-    auto fillEnum = [](QComboBox* combo, int max,
+    // 显式传入枚举值列表，避免依赖“枚举值从 0 连续递增”这一隐含假设；
+    // 未来若插入非连续枚举值，只需改这里传的列表即可。
+    auto fillEnum = [](QComboBox* combo, const QList<int>& values,
                        auto label, auto key) {
         combo->addItem(QStringLiteral("不限"), QString());
-        for (int i = 0; i <= max; ++i) {
-            combo->addItem(label(i), key(i));
+        for (int v : values) {
+            combo->addItem(label(v), key(v));
         }
     };
 
     auto* habitCombo = new QComboBox(filterBox);
-    fillEnum(habitCombo, static_cast<int>(GrowthHabit::Other),
+    fillEnum(habitCombo,
+             { static_cast<int>(GrowthHabit::Tree),
+               static_cast<int>(GrowthHabit::Shrub),
+               static_cast<int>(GrowthHabit::Herb),
+               static_cast<int>(GrowthHabit::Vine),
+               static_cast<int>(GrowthHabit::Aquatic),
+               static_cast<int>(GrowthHabit::Succulent),
+               static_cast<int>(GrowthHabit::Fern),
+               static_cast<int>(GrowthHabit::Other) },
              [](int i) { return habitLabel(static_cast<GrowthHabit>(i)); },
              [](int i) { return habitToKey(static_cast<GrowthHabit>(i)); });
     filterForm->addRow(QStringLiteral("生长习性："), habitCombo);
 
     auto* lifeCombo = new QComboBox(filterBox);
-    fillEnum(lifeCombo, static_cast<int>(LifeCycle::Perennial),
+    fillEnum(lifeCombo,
+             { static_cast<int>(LifeCycle::Annual),
+               static_cast<int>(LifeCycle::Biennial),
+               static_cast<int>(LifeCycle::Perennial) },
              [](int i) { return lifecycleLabel(static_cast<LifeCycle>(i)); },
              [](int i) { return lifecycleToKey(static_cast<LifeCycle>(i)); });
     filterForm->addRow(QStringLiteral("生命周期："), lifeCombo);
 
     auto* lightCombo = new QComboBox(filterBox);
-    fillEnum(lightCombo, static_cast<int>(LightPreference::Shade),
+    fillEnum(lightCombo,
+             { static_cast<int>(LightPreference::FullSun),
+               static_cast<int>(LightPreference::HalfSun),
+               static_cast<int>(LightPreference::HalfShade),
+               static_cast<int>(LightPreference::Shade) },
              [](int i) { return lightLabel(static_cast<LightPreference>(i)); },
              [](int i) { return lightToKey(static_cast<LightPreference>(i)); });
     filterForm->addRow(QStringLiteral("光照："), lightCombo);
 
     auto* waterCombo = new QComboBox(filterBox);
-    fillEnum(waterCombo, static_cast<int>(WaterPreference::Aquatic),
+    fillEnum(waterCombo,
+             { static_cast<int>(WaterPreference::Dry),
+               static_cast<int>(WaterPreference::Moderate),
+               static_cast<int>(WaterPreference::Moist),
+               static_cast<int>(WaterPreference::Aquatic) },
              [](int i) { return waterLabel(static_cast<WaterPreference>(i)); },
              [](int i) { return waterToKey(static_cast<WaterPreference>(i)); });
     filterForm->addRow(QStringLiteral("水分："), waterCombo);
 
     auto* foliageCombo = new QComboBox(filterBox);
-    fillEnum(foliageCombo, static_cast<int>(FoliageType::Deciduous),
+    fillEnum(foliageCombo,
+             { static_cast<int>(FoliageType::Evergreen),
+               static_cast<int>(FoliageType::SemiEvergreen),
+               static_cast<int>(FoliageType::Deciduous) },
              [](int i) { return foliageLabel(static_cast<FoliageType>(i)); },
              [](int i) { return foliageToKey(static_cast<FoliageType>(i)); });
     filterForm->addRow(QStringLiteral("叶型："), foliageCombo);
 
     auto* rateCombo = new QComboBox(filterBox);
-    fillEnum(rateCombo, static_cast<int>(GrowthRate::Fast),
+    fillEnum(rateCombo,
+             { static_cast<int>(GrowthRate::Slow),
+               static_cast<int>(GrowthRate::Medium),
+               static_cast<int>(GrowthRate::Fast) },
              [](int i) { return growthRateLabel(static_cast<GrowthRate>(i)); },
              [](int i) { return growthRateToKey(static_cast<GrowthRate>(i)); });
     filterForm->addRow(QStringLiteral("生长速度："), rateCombo);
@@ -1141,6 +1176,66 @@ int MainWindow::subtreeSize(int id) const
     return total;
 }
 
+QSet<QString> MainWindow::collectSubtreePhotos(int id) const
+{
+    QSet<QString> photos;
+    std::function<void(int)> visit = [&](int nodeId) {
+        const TaxonNode* n = m_document->node(nodeId);
+        if (!n)
+            return;
+        if (n->hasInfo) {
+            for (const QString& fileName : n->info.photos)
+                photos.insert(fileName);
+        }
+        for (int childId : n->childIds)
+            visit(childId);
+    };
+    visit(id);
+    return photos;
+}
+
+QSet<QString> MainWindow::collectAllReferencedPhotos() const
+{
+    QSet<QString> photos;
+    for (int rootId : m_document->roots())
+        photos.unite(collectSubtreePhotos(rootId));
+    return photos;
+}
+
+void MainWindow::removeSubtreeAndPhotos(int id)
+{
+    // 删除前先收集该子树引用的照片，删除后再判断它们是否还被其余节点引用，
+    // 只有变成“孤儿”的文件才会从 photos/ 目录删除。
+    const QSet<QString> subtreePhotos = collectSubtreePhotos(id);
+
+    QString error;
+    if (!m_document->removeNode(id, &error)) {
+        showError(QStringLiteral("删除失败"), error);
+        return;
+    }
+
+    const QSet<QString> stillReferenced = collectAllReferencedPhotos();
+    const QDir photosDir(QDir(m_dataDir).filePath(QStringLiteral("photos")));
+    QStringList removed;
+    for (const QString& fileName : subtreePhotos) {
+        if (stillReferenced.contains(fileName))
+            continue;  // 其他节点仍引用该照片，保留。
+        const QString fullPath = photosDir.filePath(fileName);
+        if (QFile::exists(fullPath) && QFile::remove(fullPath))
+            removed.append(fileName);
+    }
+
+    rebuildTree();
+    m_view->showNode(0);
+    refreshActionState();
+    saveData();
+
+    if (!removed.isEmpty()) {
+        setStatus(QStringLiteral("已删除分类，并清理 %1 个不再被引用的照片文件。")
+                      .arg(removed.size()));
+    }
+}
+
 void MainWindow::removeSelected()
 {
     const int id = selectedNodeId();
@@ -1152,21 +1247,13 @@ void MainWindow::removeSelected()
     const QString question = QStringLiteral(
         "确定删除“%1”吗？\n\n将级联删除其下 %2 个分类节点，"
         "相关物种资料（描述、属性、拉丁学名）会一并删除。\n"
-        "已复制的照片文件仍保留在数据目录中，不会自动删除。")
+        "删除后，不再被其他植物引用的照片文件也会一并清理。")
         .arg(n->name).arg(total);
     if (QMessageBox::question(this, QStringLiteral("确认删除"), question)
         != QMessageBox::Yes)
         return;
 
-    QString error;
-    if (!m_document->removeNode(id, &error)) {
-        showError(QStringLiteral("删除失败"), error);
-        return;
-    }
-    rebuildTree();
-    m_view->showNode(0);
-    refreshActionState();
-    saveData();
+    removeSubtreeAndPhotos(id);
 }
 
 bool MainWindow::saveData()

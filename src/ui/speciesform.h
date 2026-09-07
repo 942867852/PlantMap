@@ -60,7 +60,6 @@ private slots:
 private:
     QWidget* buildFormPage();
     QWidget* buildHintPage();
-    void markEdited();
     void setPhotoPreview(const QString& relativeName);
     void updatePhotoPreview();
     void resizeEvent(QResizeEvent* event) override;

@@ -393,8 +393,14 @@ int TaxonomyDocument::parseNodeJson(const QJsonObject& obj, int parentId,
     }
 
     int id = obj.value(QStringLiteral("id")).toInt();
-    if (id <= 0)
+    if (id <= 0) {
+        // 节点省略或非法 id 时，从 nextId 起寻找一个未被占用的 id。
+        // 正常程序保存的文件 id 严格连续且唯一，此分支仅在手工编辑
+        // JSON 等异常情况下触发；循环保证兜底 id 不与任何显式 id 冲突。
+        while (seenIds.contains(nextId))
+            ++nextId;
         id = nextId;
+    }
     if (seenIds.contains(id)) {
         error = QStringLiteral("JSON 中节点 id=%1 重复。").arg(id);
         return 0;

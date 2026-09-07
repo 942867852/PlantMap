@@ -287,22 +287,9 @@ void SpeciesViewForm::refreshDetail()
     m_humidityValue->setText(
         DisplayFormat::rangeText(info.humidityMinPct, info.humidityMaxPct,
                                  QStringLiteral(" %")));
-    if (info.phMin == 0.0 && info.phMax == 0.0) {
-        m_phValue->setText(QStringLiteral("未填写"));
-    } else if (info.phMin == 0.0) {
-        m_phValue->setText(
-            QStringLiteral("最高 %1")
-                .arg(DisplayFormat::formatOneDecimal(info.phMax)));
-    } else if (info.phMax == 0.0) {
-        m_phValue->setText(
-            QStringLiteral("最低 %1")
-                .arg(DisplayFormat::formatOneDecimal(info.phMin)));
-    } else {
-        m_phValue->setText(
-            QStringLiteral("%1 ~ %2")
-                .arg(DisplayFormat::formatOneDecimal(info.phMin))
-                .arg(DisplayFormat::formatOneDecimal(info.phMax)));
-    }
+    // 行标签已含“土壤 pH：”，值无需再加单位。
+    m_phValue->setText(
+        DisplayFormat::rangeTextDouble(info.phMin, info.phMax, QString()));
     m_soilValue->setText(joinChecked(
         info.soilTypes, predefinedSoilTypes(),
         [](const QString& key) { return soilTypeLabel(key); }));

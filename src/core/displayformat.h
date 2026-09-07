@@ -12,6 +12,10 @@ QString joinMonths(const QVector<int>& months);
 // 数值范围文本；unknown 表示“未填写”的单端哨兵。
 QString rangeText(int low, int high, const QString& suffix, int unknown = 0);
 
+// 浮点数值范围文本（固定 1 位小数），用于 pH 等；0.0 视为“未填写”。
+// 输出形如 “未填写” / “最高 8.5” / “最低 6.0” / “6.0 ~ 8.5”。
+QString rangeTextDouble(double low, double high, const QString& suffix);
+
 // 数值统一保留 1 位小数（例如 pH）。
 double roundOneDecimal(double value);
 

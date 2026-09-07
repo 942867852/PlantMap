@@ -2,6 +2,7 @@
 #include "displayformat.h"
 
 #include <algorithm>
+#include <cmath>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -390,8 +391,8 @@ bool SpeciesInfo::operator==(const SpeciesInfo& other) const
         && temperatureMaxC == other.temperatureMaxC
         && humidityMinPct == other.humidityMinPct
         && humidityMaxPct == other.humidityMaxPct
-        && qRound(phMin * 10.0) == qRound(other.phMin * 10.0)
-        && qRound(phMax * 10.0) == qRound(other.phMax * 10.0)
+        && std::round(phMin * 10.0) == std::round(other.phMin * 10.0)
+        && std::round(phMax * 10.0) == std::round(other.phMax * 10.0)
         && soilTypes == other.soilTypes
         && hardinessZoneLow == other.hardinessZoneLow
         && hardinessZoneHigh == other.hardinessZoneHigh
