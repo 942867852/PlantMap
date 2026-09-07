@@ -1,7 +1,9 @@
 #include "mainwindow.h"
 
 #include "speciesform.h"
+#include "wheelignorefilter.h"
 
+#include <QAbstractItemView>
 #include <QAction>
 #include <QCloseEvent>
 #include <QComboBox>
@@ -49,7 +51,15 @@ public:
                       QWidget* parent = nullptr)
         : QDialog(parent)
     {
+        m_document = document;
+        m_dataDir = dataDir;
+        m_nodeId = nodeId;
+
         const TaxonNode* n = document->node(nodeId);
+        m_originalHasInfo = n && n->hasInfo;
+        if (m_originalHasInfo)
+            m_originalInfo = n->info;
+
         setWindowTitle(QStringLiteral("编辑资料：%1（%2）")
                            .arg(n ? n->name : QString(),
                                 n ? TaxonRanks::displayName(n->rank)
@@ -82,21 +92,90 @@ public:
 protected:
     void reject() override
     {
-        if (m_form->hasUnsavedChanges()) {
+        if (hasDiscardableChanges()) {
             const QMessageBox::StandardButton answer =
                 QMessageBox::warning(
                     this, QStringLiteral("有未保存的修改"),
-                    QStringLiteral("当前编辑的内容还没有保存。\n\n"
-                                   "确定要放弃这些修改并关闭吗？"),
+                    QStringLiteral("当前编辑的内容或照片操作还没有保存。\n\n"
+                                   "确定要放弃本次所有修改并关闭吗？"
+                                   "（新添加的照片也会被删除）"),
                     QMessageBox::Yes | QMessageBox::No,
                     QMessageBox::No);
             if (answer != QMessageBox::Yes)
                 return;
+
+            QString error;
+            if (!rollback(&error)) {
+                QMessageBox::critical(
+                    this, QStringLiteral("无法还原"),
+                    QStringLiteral("还原失败，为避免数据丢失窗口不会关闭。\n\n%1")
+                        .arg(error));
+                return;
+            }
         }
         QDialog::reject();
     }
 
 private:
+    bool hasDiscardableChanges() const
+    {
+        if (m_form->hasUnsavedChanges())
+            return true;
+
+        const TaxonNode* n = m_document->node(m_nodeId);
+        const bool currentHasInfo = n && n->hasInfo;
+        if (currentHasInfo != m_originalHasInfo)
+            return true;
+
+        const SpeciesInfo currentInfo =
+            currentHasInfo ? n->info : SpeciesInfo();
+        return !(currentInfo == m_originalInfo);
+    }
+
+    bool rollback(QString* error)
+    {
+        // 先记录当前资料里的照片，删除“本次会话新增”的图片文件。
+        const TaxonNode* n = m_document->node(m_nodeId);
+        QStringList currentPhotos;
+        if (n && n->hasInfo)
+            currentPhotos = n->info.photos;
+
+        QStringList addedPhotos = currentPhotos;
+        for (const QString& originalPhoto : m_originalInfo.photos)
+            addedPhotos.removeAll(originalPhoto);
+
+        bool ok = false;
+        if (m_originalHasInfo) {
+            ok = m_document->setInfo(m_nodeId, m_originalInfo, error);
+        } else {
+            ok = m_document->clearInfo(m_nodeId, error);
+        }
+        if (!ok)
+            return false;
+
+        // 文档已还原，再清理本次新增且已无引用的照片文件。
+        QStringList failedToRemove;
+        for (const QString& relativeName : addedPhotos) {
+            const QString fullPath = QDir(m_dataDir).filePath(
+                QStringLiteral("photos") + QLatin1Char('/') + relativeName);
+            if (QFile::exists(fullPath) && !QFile::remove(fullPath))
+                failedToRemove.append(relativeName);
+        }
+        if (!failedToRemove.isEmpty()) {
+            QMessageBox::warning(
+                this, QStringLiteral("部分照片文件未能删除"),
+                QStringLiteral("数据库已还原，但以下照片文件可能正被占用，"
+                               "无法删除：\n\n%1")
+                    .arg(failedToRemove.join(QLatin1Char('\n'))));
+        }
+        return ok;
+    }
+
+    TaxonomyDocument* m_document = nullptr;
+    QString m_dataDir;
+    int m_nodeId = 0;
+    bool m_originalHasInfo = false;
+    SpeciesInfo m_originalInfo;
     SpeciesForm* m_form = nullptr;
 };
 
@@ -408,8 +487,16 @@ void MainWindow::onSearchTextChanged(const QString& text)
     m_tree->setVisible(!searching);
     m_treeCaption->setVisible(!searching);
 
-    if (!searching)
+    if (!searching) {
+        refreshActionState();
         return;
+    }
+
+    // 搜索激活时禁用针对“隐藏树节点”的增删改操作，避免误操作。
+    m_addAction->setEnabled(false);
+    m_editAction->setEnabled(false);
+    m_renameAction->setEnabled(false);
+    m_deleteAction->setEnabled(false);
 
     m_searchResults->clear();
     const QString normalizedQuery =
@@ -551,6 +638,20 @@ void MainWindow::openAdvancedSearch()
     for (int month = 1; month <= 12; ++month)
         bloomMonthCombo->addItem(QStringLiteral("%1月").arg(month), month);
     filterForm->addRow(QStringLiteral("花期月份："), bloomMonthCombo);
+
+    auto* wheelGuard = new WheelIgnoreFilter(filterBox);
+    for (QComboBox* combo : filterBox->findChildren<QComboBox*>()) {
+        combo->installEventFilter(wheelGuard);
+        for (QObject* child : combo->children()) {
+            if (auto* childWidget = qobject_cast<QWidget*>(child))
+                childWidget->installEventFilter(wheelGuard);
+        }
+        if (QAbstractItemView* view = combo->view()) {
+            view->installEventFilter(wheelGuard);
+            if (view->viewport())
+                view->viewport()->installEventFilter(wheelGuard);
+        }
+    }
     layout->addWidget(filterBox);
 
     auto* countLabel = new QLabel(&dialog);

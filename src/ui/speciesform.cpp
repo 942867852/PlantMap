@@ -1,5 +1,7 @@
 #include "speciesform.h"
+#include "wheelignorefilter.h"
 
+#include <QAbstractItemView>
 #include <QAbstractSpinBox>
 #include <QCheckBox>
 #include <QComboBox>
@@ -37,23 +39,6 @@
 #include <functional>
 
 namespace {
-
-// 拦截鼠标滚轮：让下拉框在悬停/聚焦时不会因为滚动而悄悄改变选项。
-class WheelIgnoreFilter : public QObject
-{
-public:
-    explicit WheelIgnoreFilter(QObject* parent)
-        : QObject(parent)
-    {
-    }
-
-    bool eventFilter(QObject* watched, QEvent* event) override
-    {
-        if (event->type() == QEvent::Wheel)
-            return true;
-        return QObject::eventFilter(watched, event);
-    }
-};
 
 QCheckBox* makeCheckBox(const QString& text, const QString& key = QString())
 {
@@ -476,8 +461,14 @@ QWidget* SpeciesForm::buildFormPage()
 
     // 下拉菜单和数字输入框悬停时不再响应鼠标滚轮，避免误改选项。
     auto* wheelGuard = new WheelIgnoreFilter(content);
-    for (QComboBox* combo : content->findChildren<QComboBox*>())
+    for (QComboBox* combo : content->findChildren<QComboBox*>()) {
         combo->installEventFilter(wheelGuard);
+        if (QAbstractItemView* view = combo->view()) {
+            view->installEventFilter(wheelGuard);
+            if (view->viewport())
+                view->viewport()->installEventFilter(wheelGuard);
+        }
+    }
     for (QAbstractSpinBox* spin : content->findChildren<QAbstractSpinBox*>()) {
         spin->installEventFilter(wheelGuard);
         for (QObject* child : spin->children()) {
@@ -871,6 +862,12 @@ void SpeciesForm::addPhotos()
     info.photos.append(added);
     QString error;
     if (!m_document->setInfo(m_nodeId, info, &error)) {
+        // 写入数据库失败时，清理本次已经复制到照片目录的文件，避免残留。
+        for (const QString& fileName : added) {
+            const QString copied = photosDir.filePath(fileName);
+            if (QFile::exists(copied))
+                QFile::remove(copied);
+        }
         QMessageBox::warning(this, QStringLiteral("无法保存照片信息"), error);
         return;
     }

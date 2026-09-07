@@ -16,6 +16,8 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 
 # 核心数据层：不依赖 Widgets，方便以后做命令行工具/自检
 add_library(plantcore STATIC
+    src/core/dbversion.cpp
+    src/core/dbversion.h
     src/core/taxonrank.cpp
     src/core/speciesinfo.cpp
     src/core/taxondocument.cpp

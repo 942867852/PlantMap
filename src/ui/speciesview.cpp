@@ -31,6 +31,16 @@ QString joinMonths(const QVector<int>& months)
             present[month] = true;
     }
 
+    bool allMonths = true;
+    for (int month = 1; month <= 12; ++month) {
+        if (!present[month]) {
+            allMonths = false;
+            break;
+        }
+    }
+    if (allMonths)
+        return QStringLiteral("全年");
+
     QStringList parts;
     for (int start = 1; start <= 12; ++start) {
         if (!present[start])
@@ -76,8 +86,12 @@ QString joinChecked(const QSet<QString>& keys,
 
 QString rangeText(int low, int high, const QString& suffix, int unknown = 0)
 {
-    if (low == unknown || high == unknown)
+    if (low == unknown && high == unknown)
         return QStringLiteral("未填写");
+    if (low == unknown)
+        return QStringLiteral("最高 %1%2").arg(high).arg(suffix);
+    if (high == unknown)
+        return QStringLiteral("最低 %1%2").arg(low).arg(suffix);
     return QStringLiteral("%1%2 ~ %3%2").arg(low).arg(suffix).arg(high);
 }
 
@@ -327,6 +341,14 @@ void SpeciesViewForm::refreshDetail()
                   QStringLiteral(" %")));
     if (info.phMin == 0.0 && info.phMax == 0.0) {
         m_phValue->setText(QStringLiteral("未填写"));
+    } else if (info.phMin == 0.0) {
+        m_phValue->setText(
+            QStringLiteral("最高 %1")
+                .arg(info.phMax, 0, 'f', 1));
+    } else if (info.phMax == 0.0) {
+        m_phValue->setText(
+            QStringLiteral("最低 %1")
+                .arg(info.phMin, 0, 'f', 1));
     } else {
         m_phValue->setText(
             QStringLiteral("%1 ~ %2")
@@ -336,13 +358,19 @@ void SpeciesViewForm::refreshDetail()
     m_soilValue->setText(joinChecked(
         info.soilTypes, predefinedSoilTypes(),
         [](const QString& key) { return soilTypeLabel(key); }));
-    if (info.hardinessZoneLow > 0 && info.hardinessZoneHigh > 0) {
+    if (info.hardinessZoneLow == 0 && info.hardinessZoneHigh == 0) {
+        m_zoneValue->setText(QStringLiteral("未填写"));
+    } else if (info.hardinessZoneLow == 0) {
+        m_zoneValue->setText(
+            QStringLiteral("最高区 %1").arg(info.hardinessZoneHigh));
+    } else if (info.hardinessZoneHigh == 0) {
+        m_zoneValue->setText(
+            QStringLiteral("最低区 %1").arg(info.hardinessZoneLow));
+    } else {
         m_zoneValue->setText(
             QStringLiteral("区 %1 ~ %2")
                 .arg(info.hardinessZoneLow)
                 .arg(info.hardinessZoneHigh));
-    } else {
-        m_zoneValue->setText(QStringLiteral("未填写"));
     }
 
     m_habitValue->setText(habitLabel(info.habit));

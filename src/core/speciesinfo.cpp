@@ -2,8 +2,15 @@
 
 #include <algorithm>
 #include <QJsonArray>
+#include <QtGlobal>
 
 namespace {
+
+// 数据库里的 pH 统一只保留 1 位小数，避免出现 5.300000000000001。
+double roundOneDecimal(double value)
+{
+    return qRound(value * 10.0) / 10.0;
+}
 
 QJsonArray monthsToJson(const QVector<int>& months)
 {
@@ -349,8 +356,8 @@ bool SpeciesInfo::operator==(const SpeciesInfo& other) const
         && temperatureMaxC == other.temperatureMaxC
         && humidityMinPct == other.humidityMinPct
         && humidityMaxPct == other.humidityMaxPct
-        && phMin == other.phMin
-        && phMax == other.phMax
+        && qRound(phMin * 10.0) == qRound(other.phMin * 10.0)
+        && qRound(phMax * 10.0) == qRound(other.phMax * 10.0)
         && soilTypes == other.soilTypes
         && hardinessZoneLow == other.hardinessZoneLow
         && hardinessZoneHigh == other.hardinessZoneHigh
@@ -383,8 +390,8 @@ QJsonObject SpeciesInfo::toJson() const
     obj[QStringLiteral("temperature_max_c")] = temperatureMaxC;
     obj[QStringLiteral("humidity_min_pct")] = humidityMinPct;
     obj[QStringLiteral("humidity_max_pct")] = humidityMaxPct;
-    obj[QStringLiteral("ph_min")] = phMin;
-    obj[QStringLiteral("ph_max")] = phMax;
+    obj[QStringLiteral("ph_min")] = roundOneDecimal(phMin);
+    obj[QStringLiteral("ph_max")] = roundOneDecimal(phMax);
     obj[QStringLiteral("soil_types")] = keysToJson(soilTypes);
     obj[QStringLiteral("hardiness_zone_low")] = hardinessZoneLow;
     obj[QStringLiteral("hardiness_zone_high")] = hardinessZoneHigh;
@@ -428,8 +435,10 @@ SpeciesInfo SpeciesInfo::fromJson(const QJsonObject& obj)
     info.temperatureMaxC = obj.value(QStringLiteral("temperature_max_c")).toInt(info.temperatureMaxC);
     info.humidityMinPct = obj.value(QStringLiteral("humidity_min_pct")).toInt(info.humidityMinPct);
     info.humidityMaxPct = obj.value(QStringLiteral("humidity_max_pct")).toInt(info.humidityMaxPct);
-    info.phMin = obj.value(QStringLiteral("ph_min")).toDouble(info.phMin);
-    info.phMax = obj.value(QStringLiteral("ph_max")).toDouble(info.phMax);
+    info.phMin = roundOneDecimal(
+        obj.value(QStringLiteral("ph_min")).toDouble(info.phMin));
+    info.phMax = roundOneDecimal(
+        obj.value(QStringLiteral("ph_max")).toDouble(info.phMax));
     info.soilTypes = keysFromJson(obj.value(QStringLiteral("soil_types")).toArray());
     info.hardinessZoneLow = obj.value(QStringLiteral("hardiness_zone_low")).toInt();
     info.hardinessZoneHigh = obj.value(QStringLiteral("hardiness_zone_high")).toInt();

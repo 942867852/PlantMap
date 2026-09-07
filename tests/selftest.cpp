@@ -1,6 +1,11 @@
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QTemporaryFile>
 
+#include "dbversion.h"
 #include "taxondocument.h"
 
 namespace {
@@ -28,6 +33,25 @@ int appendChain(TaxonomyDocument& doc, const QStringList& names, QString* error)
         parentId = lastId;
     }
     return lastId;
+}
+
+QJsonObject legacyV1Database()
+{
+    QJsonObject root;
+    root[QStringLiteral("app")] = QStringLiteral("PlantMap");
+    root[QStringLiteral("version")] = 1;
+
+    QJsonObject kingdom;
+    kingdom[QStringLiteral("id")] = 1;
+    kingdom[QStringLiteral("rank")] = QStringLiteral("kingdom");
+    kingdom[QStringLiteral("name")] = QStringLiteral("植物界");
+    // 旧版本故意不写 children，验证 v2→v3 会补全。
+
+    QJsonObject taxonomy;
+    taxonomy[QStringLiteral("next_id")] = 5;
+    taxonomy[QStringLiteral("roots")] = QJsonArray { kingdom };
+    root[QStringLiteral("taxonomy")] = taxonomy;
+    return root;
 }
 
 } // namespace
@@ -121,6 +145,50 @@ int main(int argc, char* argv[])
           QStringLiteral("种与亚种被级联删除"));
     check(doc.findNodeByScientificName(QStringLiteral("rosa rugosa")) == 0,
           QStringLiteral("删除后拉丁名索引同步清理"));
+
+    // 12. schema 版本识别
+    const QJsonObject v1 = legacyV1Database();
+    check(DbVersion::schemaVersionOf(v1) == 1,
+          QStringLiteral("旧版 version=1 可被识别"));
+
+    // 13. 1 → 2 迁移
+    const QJsonObject v2 = DbVersion::migrateV1ToV2(v1);
+    check(DbVersion::schemaVersionOf(v2) == 2
+              && !v2.contains(QStringLiteral("version")),
+          QStringLiteral("1 → 2：version 转为 schema_version"));
+
+    // 14. 2 → 3 迁移
+    const QJsonObject v3 = DbVersion::migrateV2ToV3(v2);
+    const QJsonObject migratedRoot = v3.value(QStringLiteral("taxonomy"))
+                                         .toObject()
+                                         .value(QStringLiteral("roots"))
+                                         .toArray()
+                                         .at(0)
+                                         .toObject();
+    check(DbVersion::schemaVersionOf(v3) == 3
+              && migratedRoot.contains(QStringLiteral("children")),
+          QStringLiteral("2 → 3：版本号推进并补齐 children"));
+
+    // 15. 链式迁移 1 → 2 → 3
+    QJsonObject chainDb = v1;
+    check(DbVersion::migrateToLatest(chainDb, &error)
+              && DbVersion::schemaVersionOf(chainDb) == 3,
+          QStringLiteral("1 → 3 链式迁移成功：%1").arg(error));
+
+    // 16. loadFromFile 先迁移再解析
+    QTemporaryFile file(QDir::temp().filePath(
+        QStringLiteral("plantmap_schema_XXXXXX.json")));
+    check(file.open(), QStringLiteral("创建临时旧版数据库文件"));
+    file.write(QJsonDocument(v1).toJson(QJsonDocument::Compact));
+    file.flush();
+    const QString fileName = file.fileName();
+    file.close();
+
+    TaxonomyDocument legacyDoc;
+    check(legacyDoc.loadFromFile(fileName, &error),
+          QStringLiteral("旧版文件经迁移后可加载：%1").arg(error));
+    check(legacyDoc.nodeCount() == 1,
+          QStringLiteral("迁移加载后节点数正确"));
 
     qInfo() << (failures == 0 ? QStringLiteral("全部自检通过")
                               : QStringLiteral("存在 %1 项失败").arg(failures));

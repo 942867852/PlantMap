@@ -1,4 +1,5 @@
 #include "taxondocument.h"
+#include "dbversion.h"
 
 #include <QFile>
 #include <QDir>
@@ -372,7 +373,8 @@ QJsonObject TaxonomyDocument::toJson() const
 
     QJsonObject root;
     root[QStringLiteral("app")] = QStringLiteral("PlantMap");
-    root[QStringLiteral("version")] = 1;
+    root[QStringLiteral("schema_version")] =
+        DbVersion::kCurrentSchemaVersion;
     root[QStringLiteral("taxonomy")] = taxonomy;
     return root;
 }
@@ -429,9 +431,15 @@ int TaxonomyDocument::parseNodeJson(const QJsonObject& obj, int parentId,
 bool TaxonomyDocument::loadFromJson(const QJsonObject& root, QString* error)
 {
     const QString appName = root.value(QStringLiteral("app")).toString();
-    const int version = root.value(QStringLiteral("version")).toInt();
-    if (appName != QLatin1String("PlantMap") || version != 1) {
-        if (error) *error = QStringLiteral("不是 PlantMap 格式的数据文件（app/version 不匹配）。");
+    const int schemaVersion = DbVersion::schemaVersionOf(root);
+    if (appName != QLatin1String("PlantMap")
+        || schemaVersion != DbVersion::kCurrentSchemaVersion) {
+        if (error) {
+            *error = QStringLiteral(
+                "不是 PlantMap 格式的数据文件"
+                "（app/schema_version 不匹配，当前需要版本 %1）。")
+                         .arg(DbVersion::kCurrentSchemaVersion);
+        }
         return false;
     }
 
@@ -514,5 +522,10 @@ bool TaxonomyDocument::loadFromFile(const QString& fileName, QString* error)
         if (error) *error = QStringLiteral("数据文件不是有效 JSON。");
         return false;
     }
-    return loadFromJson(doc.object(), error);
+
+    // 先按 schema 版本链式迁移，再交给 loadFromJson 解析。
+    QJsonObject root = doc.object();
+    if (!DbVersion::migrateToLatest(root, error))
+        return false;
+    return loadFromJson(root, error);
 }
