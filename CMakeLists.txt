@@ -23,6 +23,8 @@ add_library(plantcore STATIC
     src/core/taxonrank.cpp
     src/core/speciesinfo.cpp
     src/core/taxondocument.cpp
+    src/core/pinyin.h
+    src/core/pinyin_first.h
 )
 target_include_directories(plantcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/core)
 target_link_libraries(plantcore PUBLIC Qt6::Core)
@@ -32,6 +34,12 @@ qt_add_executable(PlantMap
     src/main.cpp
     src/ui/mainwindow.cpp
     src/ui/mainwindow.h
+    src/ui/photoimageutils.h
+    src/ui/photolightbox.cpp
+    src/ui/photolightbox.h
+    src/ui/province_map_widget.cpp
+    src/ui/province_map_widget.h
+    src/ui/china_map_data.h
     src/ui/speciesview.cpp
     src/ui/speciesview.h
     src/ui/speciesform.cpp

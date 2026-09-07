@@ -13,7 +13,7 @@
  */
 namespace DbVersion {
 
-constexpr int kCurrentSchemaVersion = 3;
+constexpr int kCurrentSchemaVersion = 4;
 
 // 读取文件声明的格式版本；兼容旧字段 version 与新字段 schema_version。
 // 无法识别时返回 0。
@@ -21,6 +21,7 @@ int schemaVersionOf(const QJsonObject& db);
 
 QJsonObject migrateV1ToV2(const QJsonObject& db);
 QJsonObject migrateV2ToV3(const QJsonObject& db);
+QJsonObject migrateV3ToV4(const QJsonObject& db);
 
 // 把 db 原地升级到当前版本；成功返回 true。
 bool migrateToLatest(QJsonObject& db, QString* error = nullptr);

@@ -6,6 +6,7 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
+#include <QtGlobal>
 
 namespace {
 
@@ -364,6 +365,8 @@ bool SpeciesInfo::isEmpty() const
         && soilTypes.isEmpty()
         && hardinessZoneLow == 0
         && hardinessZoneHigh == 0
+        && nativeRegions.isEmpty()
+        && habitat.isEmpty()
         && habit == GrowthHabit::Unknown
         && lifeCycle == LifeCycle::Unknown
         && foliage == FoliageType::Unknown
@@ -396,6 +399,8 @@ bool SpeciesInfo::operator==(const SpeciesInfo& other) const
         && soilTypes == other.soilTypes
         && hardinessZoneLow == other.hardinessZoneLow
         && hardinessZoneHigh == other.hardinessZoneHigh
+        && nativeRegions == other.nativeRegions
+        && habitat == other.habitat
         && habit == other.habit
         && lifeCycle == other.lifeCycle
         && foliage == other.foliage
@@ -430,6 +435,8 @@ QJsonObject SpeciesInfo::toJson() const
     obj[QStringLiteral("soil_types")] = keysToJson(soilTypes);
     obj[QStringLiteral("hardiness_zone_low")] = hardinessZoneLow;
     obj[QStringLiteral("hardiness_zone_high")] = hardinessZoneHigh;
+    obj[QStringLiteral("native_regions")] = QJsonArray::fromStringList(nativeRegions);
+    obj[QStringLiteral("habitat")] = habitat;
 
     obj[QStringLiteral("habit")] = habitToKey(habit);
     obj[QStringLiteral("life_cycle")] = lifecycleToKey(lifeCycle);
@@ -469,26 +476,49 @@ SpeciesInfo SpeciesInfo::fromJson(const QJsonObject& obj)
 
     info.light = lightFromKey(obj.value(QStringLiteral("light")).toString());
     info.water = waterFromKey(obj.value(QStringLiteral("water")).toString());
-    info.temperatureMinC = obj.value(QStringLiteral("temperature_min_c")).toInt(info.temperatureMinC);
-    info.temperatureMaxC = obj.value(QStringLiteral("temperature_max_c")).toInt(info.temperatureMaxC);
-    info.humidityMinPct = obj.value(QStringLiteral("humidity_min_pct")).toInt(info.humidityMinPct);
-    info.humidityMaxPct = obj.value(QStringLiteral("humidity_max_pct")).toInt(info.humidityMaxPct);
-    info.phMin = DisplayFormat::roundOneDecimal(
-        obj.value(QStringLiteral("ph_min")).toDouble(info.phMin));
-    info.phMax = DisplayFormat::roundOneDecimal(
-        obj.value(QStringLiteral("ph_max")).toDouble(info.phMax));
+    // 数值统一钳制到编辑控件允许的范围内，避免手编/异常 JSON 中的越界值
+    // 在编辑页被 spinbox 二次钳制后造成“打开就有未保存修改”的假象。
+    info.temperatureMinC = qBound(
+        -100, obj.value(QStringLiteral("temperature_min_c")).toInt(info.temperatureMinC), 100);
+    info.temperatureMaxC = qBound(
+        -100, obj.value(QStringLiteral("temperature_max_c")).toInt(info.temperatureMaxC), 100);
+    info.humidityMinPct = qBound(
+        0, obj.value(QStringLiteral("humidity_min_pct")).toInt(info.humidityMinPct), 100);
+    info.humidityMaxPct = qBound(
+        0, obj.value(QStringLiteral("humidity_max_pct")).toInt(info.humidityMaxPct), 100);
+    info.phMin = qBound(0.0, DisplayFormat::roundOneDecimal(
+        obj.value(QStringLiteral("ph_min")).toDouble(info.phMin)), 14.0);
+    info.phMax = qBound(0.0, DisplayFormat::roundOneDecimal(
+        obj.value(QStringLiteral("ph_max")).toDouble(info.phMax)), 14.0);
     info.soilTypes = keysFromJson(obj.value(QStringLiteral("soil_types")).toArray());
-    info.hardinessZoneLow = obj.value(QStringLiteral("hardiness_zone_low")).toInt();
-    info.hardinessZoneHigh = obj.value(QStringLiteral("hardiness_zone_high")).toInt();
+    info.hardinessZoneLow = qBound(
+        0, obj.value(QStringLiteral("hardiness_zone_low")).toInt(), 13);
+    info.hardinessZoneHigh = qBound(
+        0, obj.value(QStringLiteral("hardiness_zone_high")).toInt(), 13);
+    info.habitat = obj.value(QStringLiteral("habitat")).toString();
+    // 原生分布省区：只保留 6 位数字 adcode，过滤掉脏数据。
+    const QJsonArray regionsArray =
+        obj.value(QStringLiteral("native_regions")).toArray();
+    for (const auto& value : regionsArray) {
+        const QString adcode = value.toString();
+        if (adcode.size() == 6 && std::all_of(adcode.begin(), adcode.end(),
+                                              [](QChar c) { return c.isDigit(); })
+            && !info.nativeRegions.contains(adcode))
+            info.nativeRegions.append(adcode);
+    }
 
     info.habit = habitFromKey(obj.value(QStringLiteral("habit")).toString());
     info.lifeCycle = lifecycleFromKey(obj.value(QStringLiteral("life_cycle")).toString());
     info.foliage = foliageFromKey(obj.value(QStringLiteral("foliage")).toString());
     info.growthRate = growthRateFromKey(obj.value(QStringLiteral("growth_rate")).toString());
-    info.heightMinCm = obj.value(QStringLiteral("height_min_cm")).toInt();
-    info.heightMaxCm = obj.value(QStringLiteral("height_max_cm")).toInt();
-    info.spreadMinCm = obj.value(QStringLiteral("spread_min_cm")).toInt();
-    info.spreadMaxCm = obj.value(QStringLiteral("spread_max_cm")).toInt();
+    info.heightMinCm = qBound(
+        0, obj.value(QStringLiteral("height_min_cm")).toInt(), 50000);
+    info.heightMaxCm = qBound(
+        0, obj.value(QStringLiteral("height_max_cm")).toInt(), 50000);
+    info.spreadMinCm = qBound(
+        0, obj.value(QStringLiteral("spread_min_cm")).toInt(), 50000);
+    info.spreadMaxCm = qBound(
+        0, obj.value(QStringLiteral("spread_max_cm")).toInt(), 50000);
     info.propagationMethods = keysFromJson(obj.value(QStringLiteral("propagation_methods")).toArray());
     info.usageTags = keysFromJson(obj.value(QStringLiteral("usage_tags")).toArray());
 

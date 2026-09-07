@@ -13,6 +13,7 @@ class QScrollArea;
 class QStackedWidget;
 class QTableWidget;
 class QResizeEvent;
+class ProvinceMapWidget;
 
 /*
  * 物种资料“查看页”：左侧点击植物后，这里以只读方式展示图片和全部属性。
@@ -32,9 +33,12 @@ public:
     void showNode(int id);
     // 搜索等场景下禁用“编辑资料…”按钮。
     void setEditEnabled(bool enabled);
+    // 设置当前节点是否已收藏，更新收藏按钮外观。
+    void setFavorite(bool favorite);
 
 signals:
     void editRequested(int nodeId);
+    void favoriteToggled(int nodeId);
 
 private slots:
     void onPhotoSelectionChanged(QListWidgetItem* current,
@@ -60,6 +64,7 @@ private:
     QLabel* m_hintLabel = nullptr;
     QLabel* m_pathLabel = nullptr;
     QPushButton* m_editButton = nullptr;
+    QPushButton* m_favoriteButton = nullptr;
 
     // 照片展示
     QLabel* m_photoPreview = nullptr;
@@ -81,6 +86,11 @@ private:
     QLabel* m_phValue = nullptr;
     QLabel* m_soilValue = nullptr;
     QLabel* m_zoneValue = nullptr;
+
+    // 地理分布
+    ProvinceMapWidget* m_mapWidget = nullptr;
+    QLabel* m_regionValue = nullptr;
+    QLabel* m_habitatValue = nullptr;
 
     // 生长形态
     QLabel* m_habitValue = nullptr;

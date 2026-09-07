@@ -129,15 +129,25 @@ const TaxonNode* TaxonomyDocument::childByName(int parentId, const QString& name
 
 int TaxonomyDocument::addNode(int parentId, const QString& name, QString* error)
 {
+    return addNode(parentId, name, TaxonRank::Invalid, error);
+}
+
+int TaxonomyDocument::addNode(int parentId, const QString& name, TaxonRank rank,
+                              QString* error)
+{
     const QString cleanName = trimCollapse(name);
     if (cleanName.isEmpty()) {
         if (error) *error = QStringLiteral("名称不能为空。");
         return 0;
     }
 
-    TaxonRank rank = TaxonRank::Kingdom;
+    TaxonRank resolvedRank = TaxonRank::Kingdom;
     if (parentId == 0) {
-        rank = TaxonRank::Kingdom;
+        resolvedRank = TaxonRank::Kingdom;
+        if (rank != TaxonRank::Invalid && rank != TaxonRank::Kingdom) {
+            if (error) *error = QStringLiteral("顶级分类的等级只能是“界”。");
+            return 0;
+        }
     } else {
         const TaxonNode* parentNode = node(parentId);
         if (!parentNode) {
@@ -146,12 +156,34 @@ int TaxonomyDocument::addNode(int parentId, const QString& name, QString* error)
         }
         if (!TaxonRanks::canHaveChildren(parentNode->rank)) {
             if (error) {
-                *error = QStringLiteral("“%1”已经是最细等级（%2），不能继续添加下级。")
+                *error = QStringLiteral("“%1”已经是末级（%2），不能继续添加下级。")
                              .arg(parentNode->name, TaxonRanks::displayName(parentNode->rank));
             }
             return 0;
         }
-        rank = TaxonRanks::nextLower(parentNode->rank);
+
+        if (rank == TaxonRank::Invalid) {
+            resolvedRank = TaxonRanks::nextLower(parentNode->rank);
+        } else {
+            // 显式指定等级：种之下允许亚种/变种/变型/品种；其余必须等于自动推导。
+            if (parentNode->rank == TaxonRank::Species) {
+                if (!TaxonRanks::isSubrankOfSpecies(rank)) {
+                    if (error) {
+                        *error = QStringLiteral("“种”下只能添加 亚种 / 变种 / 变型 / 品种。");
+                    }
+                    return 0;
+                }
+            } else if (rank != TaxonRanks::nextLower(parentNode->rank)) {
+                if (error) {
+                    *error = QStringLiteral("“%1”的下一级应为“%2”，不能指定为“%3”。")
+                                 .arg(parentNode->name,
+                                      TaxonRanks::displayName(TaxonRanks::nextLower(parentNode->rank)),
+                                      TaxonRanks::displayName(rank));
+                }
+                return 0;
+            }
+            resolvedRank = rank;
+        }
     }
 
     if (childByName(parentId, cleanName)) {
@@ -167,7 +199,7 @@ int TaxonomyDocument::addNode(int parentId, const QString& name, QString* error)
     auto newNode = QSharedPointer<TaxonNode>::create();
     newNode->id = m_nextId++;
     newNode->parentId = parentId;
-    newNode->rank = rank;
+    newNode->rank = resolvedRank;
     newNode->name = cleanName;
 
     if (parentId == 0) {
@@ -240,6 +272,144 @@ bool TaxonomyDocument::renameNode(int id, const QString& newName, QString* error
     }
     n->name = cleanName;
     return true;
+}
+
+int TaxonomyDocument::cloneSubtree(int srcId, int dstParentId,
+                                   const QString& newRootName, QString* error)
+{
+    const TaxonNode* src = node(srcId);
+    if (!src) {
+        if (error) *error = QStringLiteral("要复制的节点不存在。");
+        return 0;
+    }
+
+    if (dstParentId != 0) {
+        const TaxonNode* dstParent = node(dstParentId);
+        if (!dstParent) {
+            if (error) *error = QStringLiteral("目标父节点不存在。");
+            return 0;
+        }
+        if (!TaxonRanks::canHaveChildren(dstParent->rank)) {
+            if (error) {
+                *error = QStringLiteral("“%1（%2）”已经是最末级，不能在其下添加副本。")
+                             .arg(dstParent->name, TaxonRanks::displayName(dstParent->rank));
+            }
+            return 0;
+        }
+    }
+
+    const QString cleanRoot = trimCollapse(newRootName);
+    if (cleanRoot.isEmpty()) {
+        if (error) *error = QStringLiteral("副本名称不能为空。");
+        return 0;
+    }
+    if (childByName(dstParentId, cleanRoot)) {
+        if (error) {
+            *error = QStringLiteral("已存在同名节点“%1”，请换一个副本名称。").arg(cleanRoot);
+        }
+        return 0;
+    }
+
+    // 先生成拉丁名后缀方案，避免与现有索引冲突（原件仍在，故原名必冲突）。
+    auto uniqueLatin = [&](const QString& base) {
+        for (int n = 1; ; ++n) {
+            const QString candidate = base + QStringLiteral(" dup%1").arg(n);
+            if (findNodeByScientificName(candidate) == 0)
+                return candidate;
+        }
+    };
+
+    // 先序遍历 src 子树，按顺序克隆（父节点先于子节点插入）。
+    QVector<int> order;
+    std::function<void(int)> collect = [&](int id) {
+        order.append(id);
+        const TaxonNode* n = node(id);
+        for (int childId : n->childIds)
+            collect(childId);
+    };
+    collect(srcId);
+
+    QHash<int, int> newIdOf;
+    int newRootId = 0;
+    for (int sid : order) {
+        const TaxonNode* sn = node(sid);
+        if (!sn)
+            continue;
+
+        auto cloned = QSharedPointer<TaxonNode>::create();
+        cloned->id = m_nextId++;
+        cloned->parentId = (sid == srcId) ? dstParentId
+                                          : newIdOf.value(sn->parentId, 0);
+        cloned->rank = sn->rank;
+        cloned->name = (sid == srcId) ? cleanRoot : sn->name;
+        cloned->hasInfo = sn->hasInfo;
+        if (sn->hasInfo) {
+            cloned->info = sn->info;
+            if (cloned->info.hasScientificName())
+                cloned->info.scientificName =
+                    uniqueLatin(cloned->info.scientificName);
+        }
+
+        if (cloned->parentId == 0)
+            m_rootIds.append(cloned->id);
+        else
+            node(cloned->parentId)->childIds.append(cloned->id);
+        m_nodes.insert(cloned->id, cloned);
+        if (cloned->hasInfo && cloned->info.hasScientificName())
+            addLatinToIndex(cloned->info.scientificName, cloned->id);
+
+        newIdOf.insert(sid, cloned->id);
+        if (sid == srcId)
+            newRootId = cloned->id;
+    }
+    return newRootId;
+}
+
+int TaxonomyDocument::restoreSubtreeFromJson(const QJsonObject& obj,
+                                             int parentId, QString* error)
+{
+    std::function<int(const QJsonObject&, int)> restore =
+        [&](const QJsonObject& o, int pid) -> int {
+        auto node = QSharedPointer<TaxonNode>::create();
+        node->id = m_nextId++;
+        node->parentId = pid;
+        node->rank = TaxonRanks::fromKey(o.value(QStringLiteral("rank")).toString());
+        node->name = o.value(QStringLiteral("name")).toString().trimmed();
+
+        const QJsonObject infoObj = o.value(QStringLiteral("info")).toObject();
+        if (!infoObj.isEmpty()) {
+            node->info = SpeciesInfo::fromJson(infoObj);
+            node->hasInfo = !node->info.isEmpty();
+        }
+
+        if (pid == 0)
+            m_rootIds.append(node->id);
+        else
+            this->node(pid)->childIds.append(node->id);
+        m_nodes.insert(node->id, node);
+
+        if (node->hasInfo && node->info.hasScientificName()) {
+            // 拉丁学名冲突时加后缀，保证恢复不因唯一性失败。
+            if (!addLatinToIndex(node->info.scientificName, node->id)) {
+                QString base = node->info.scientificName;
+                for (int n = 1; ; ++n) {
+                    const QString cand = base + QStringLiteral(" dup%1").arg(n);
+                    if (addLatinToIndex(cand, node->id)) {
+                        node->info.scientificName = cand;
+                        break;
+                    }
+                }
+            }
+        }
+
+        const QJsonArray children = o.value(QStringLiteral("children")).toArray();
+        for (const auto& child : children)
+            node->childIds.append(restore(child.toObject(), node->id));
+        return node->id;
+    };
+
+    if (error) *error = QString();
+    return restore(obj, parentId);
 }
 
 // ------------------------- 拉丁名索引 -------------------------
@@ -381,9 +551,25 @@ QJsonObject TaxonomyDocument::toJson() const
     return root;
 }
 
-int TaxonomyDocument::parseNodeJson(const QJsonObject& obj, int parentId,
-                                    int& nextId, QSet<int>& seenIds, QString& error)
+QJsonObject TaxonomyDocument::subtreeToJson(int id) const
 {
+    const TaxonNode* n = node(id);
+    return n ? nodeToJson(*n) : QJsonObject();
+}
+
+int TaxonomyDocument::parseNodeJson(const QJsonObject& obj, int parentId,
+                                    int& nextId, QSet<int>& seenIds, int depth,
+                                    QString& error)
+{
+    // 合法分类最多 8 级（界→亚种）。解析先于层级校验执行，
+    // 这里直接拒绝病态深层嵌套，防止手工构造的 JSON 造成栈溢出。
+    constexpr int kMaxParseDepth = 16;
+    if (depth > kMaxParseDepth) {
+        error = QStringLiteral("数据文件层级嵌套过深（超过 %1 层），文件可能已损坏。")
+                    .arg(kMaxParseDepth);
+        return 0;
+    }
+
     const QString name = obj.value(QStringLiteral("name")).toString().trimmed();
     const TaxonRank rank = TaxonRanks::fromKey(
         obj.value(QStringLiteral("rank")).toString());
@@ -425,7 +611,8 @@ int TaxonomyDocument::parseNodeJson(const QJsonObject& obj, int parentId,
 
     const QJsonArray childrenArray = obj.value(QStringLiteral("children")).toArray();
     for (const auto& value : childrenArray) {
-        const int childId = parseNodeJson(value.toObject(), id, nextId, seenIds, error);
+        const int childId = parseNodeJson(value.toObject(), id, nextId, seenIds,
+                                          depth + 1, error);
         if (childId == 0)
             return 0;
         newNode->childIds.append(childId);
@@ -464,17 +651,20 @@ bool TaxonomyDocument::validateLoadedHierarchy(QString& error) const
 
         if (n->parentId != 0) {
             const TaxonNode* parentNode = node(n->parentId);
-            const TaxonRank expected =
-                parentNode ? TaxonRanks::nextLower(parentNode->rank)
-                           : TaxonRank::Invalid;
-            if (n->rank != expected) {
+            bool rankOk = false;
+            if (parentNode && parentNode->rank == TaxonRank::Species) {
+                // 种之下允许并列的 亚种/变种/变型/品种。
+                rankOk = TaxonRanks::isSubrankOfSpecies(n->rank);
+            } else if (parentNode) {
+                rankOk = n->rank == TaxonRanks::nextLower(parentNode->rank);
+            }
+            if (!rankOk) {
                 error = QStringLiteral(
-                            "数据文件层级错误：“%1（%2）”的下一级应为%3，"
-                            "实际保存的是%4。")
+                            "数据文件层级错误：“%1（%2）”下的节点“%3（%4）”等级不合法。")
                             .arg(parentNode ? parentNode->name : QString(),
                                  parentNode ? TaxonRanks::displayName(parentNode->rank)
                                             : QStringLiteral("?"),
-                                 TaxonRanks::displayName(expected),
+                                 n->name,
                                  TaxonRanks::displayName(n->rank));
                 return false;
             }
@@ -546,7 +736,8 @@ bool TaxonomyDocument::loadFromJson(const QJsonObject& root, QString* error)
     QString loadError;
     const QJsonArray rootsArray = taxonomy.value(QStringLiteral("roots")).toArray();
     for (const auto& value : rootsArray) {
-        const int id = parseNodeJson(value.toObject(), 0, m_nextId, seenIds, loadError);
+        const int id = parseNodeJson(value.toObject(), 0, m_nextId, seenIds, 0,
+                                     loadError);
         if (id == 0) {
             if (error) *error = loadError;
             clear();
@@ -561,20 +752,26 @@ bool TaxonomyDocument::loadFromJson(const QJsonObject& root, QString* error)
         return false;
     }
 
-    // 重建拉丁学名索引；发现重复时加载失败，提示用户手工清理数据文件。
+    // 重建拉丁学名索引；发现非法/重复学名时加载失败，提示用户手工清理数据文件。
+    // 注意区分两种失败原因：“规范化后为空”与“与其他节点重复”，避免误导。
     QStringList latinErrors;
     for (auto it = m_nodes.constBegin(); it != m_nodes.constEnd(); ++it) {
         const TaxonNode* n = it.value().data();
         if (!n->hasInfo || !n->info.hasScientificName())
             continue;
+        if (normalizedScientificName(n->info.scientificName).isEmpty()) {
+            latinErrors.append(QStringLiteral("“%1”规范化后为空（位于 %2）")
+                                   .arg(n->info.scientificName, displayPathOf(n->id)));
+            continue;
+        }
         if (!addLatinToIndex(n->info.scientificName, n->id)) {
-            latinErrors.append(QStringLiteral("“%1”（位于 %2）")
+            latinErrors.append(QStringLiteral("“%1”与其他节点重复（位于 %2）")
                                    .arg(n->info.scientificName, displayPathOf(n->id)));
         }
     }
     if (!latinErrors.isEmpty()) {
         if (error) {
-            *error = QStringLiteral("数据文件中存在重复拉丁学名：%1")
+            *error = QStringLiteral("数据文件中存在非法或重复的拉丁学名：%1")
                          .arg(latinErrors.join(QStringLiteral("；")));
         }
         clear();

@@ -20,6 +20,8 @@ class QTableWidget;
 class QStackedWidget;
 class QScrollArea;
 class QResizeEvent;
+class QTimer;
+class ProvinceMapWidget;
 
 // 单个“种 / 亚种”节点的资料编辑表单（在独立编辑窗口中打开）。
 // 负责把 SpeciesInfo 显示成控件，并在“保存”时回写 TaxonomyDocument。
@@ -47,6 +49,11 @@ signals:
     void infoSaved();
     void infoSaveError(const QString& message);
 
+protected:
+    void dragEnterEvent(QDragEnterEvent* event) override;
+    void dropEvent(QDropEvent* event) override;
+    void keyPressEvent(QKeyEvent* event) override;
+
 private slots:
     void addAlias();
     void removeSelectedAlias();
@@ -67,7 +74,14 @@ private:
     bool collectFromForm(SpeciesInfo& out, QString& error) const;
     void populateFromInfo(const SpeciesInfo& info);
     void refreshPhotoList(const SpeciesInfo& info);
+    QListWidgetItem* buildPhotoItem(const QString& relativeName) const;
     QString resolvePhotoPath(const QString& relativeName) const;
+    // 把一批本地图片文件复制进照片目录并加入表单列表（拖拽/粘贴/文件对话框共用）。
+    void addPhotosFromFiles(const QStringList& files);
+    // 草稿：把当前表单内容写入草稿文件 / 删除草稿文件。
+    void saveDraft();
+    void clearDraft();
+    QString draftPath() const;
     void setCheckSet(const QSet<QString>& keys, const QVector<QCheckBox*>& checks,
                      const QStringList& keyOrder);
     void setMonths(const QVector<int>& months, const QVector<QCheckBox*>& checks);
@@ -75,6 +89,8 @@ private:
     TaxonomyDocument* m_document = nullptr;
     QString m_dataDir;
     QStringList m_copiedPhotosThisSession;
+    // 进入本次编辑会话时资料中已引用的照片（保存时据此清理被移除的文件）。
+    QStringList m_photosAtSessionStart;
     int m_nodeId = 0;
     bool m_loading = false;
 
@@ -84,6 +100,7 @@ private:
     QLabel* m_pathLabel = nullptr;
     QLabel* m_photoPreview = nullptr;
     QPixmap m_photoPreviewOriginal;
+    QTimer* m_draftTimer = nullptr;
 
     // 身份与描述
     QLineEdit* m_latinEdit = nullptr;
@@ -103,6 +120,10 @@ private:
     QSpinBox* m_zoneLow = nullptr;
     QSpinBox* m_zoneHigh = nullptr;
     QVector<QCheckBox*> m_soilChecks;
+
+    // 地理分布
+    ProvinceMapWidget* m_mapWidget = nullptr;
+    QLineEdit* m_habitatEdit = nullptr;
 
     // 生长形态
     QComboBox* m_habitCombo = nullptr;

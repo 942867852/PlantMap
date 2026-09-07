@@ -1,9 +1,14 @@
 #include "speciesform.h"
+#include "photoimageutils.h"
+#include "photolightbox.h"
+#include "province_map_widget.h"
 #include "wheelignorefilter.h"
 
 #include <QAbstractItemView>
 #include <QAbstractSpinBox>
+#include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QComboBox>
 #include <QDateTime>
 #include <QDebug>
@@ -11,6 +16,8 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDoubleSpinBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QFile>
 #include <QFileDialog>
@@ -21,10 +28,15 @@
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QInputDialog>
+#include <QKeyEvent>
+#include <QKeySequence>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMessageBox>
+#include <QMimeData>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -35,6 +47,7 @@
 #include <QSpinBox>
 #include <QStackedWidget>
 #include <QTableWidget>
+#include <QTimer>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -81,6 +94,30 @@ int comboIndexByKey(const QComboBox* combo, const QString& key)
     return index >= 0 ? index : 0;
 }
 
+// 收集文档中除 excludeNodeId 之外所有节点仍引用的照片文件名，
+// 用于判断某个不再被当前节点引用的照片文件能否安全删除。
+QSet<QString> referencedPhotosExcept(const TaxonomyDocument* document,
+                                     int excludeNodeId)
+{
+    QSet<QString> names;
+    if (!document)
+        return names;
+    std::function<void(int)> visit = [&](int nodeId) {
+        const TaxonNode* n = document->node(nodeId);
+        if (!n)
+            return;
+        if (nodeId != excludeNodeId && n->hasInfo) {
+            for (const QString& photo : n->info.photos)
+                names.insert(photo);
+        }
+        for (int childId : n->childIds)
+            visit(childId);
+    };
+    for (int rootId : document->roots())
+        visit(rootId);
+    return names;
+}
+
 void addChecksToGrid(QGridLayout* grid, const QStringList& keys,
                      QVector<QCheckBox*>& checks,
                      const std::function<QString(const QString&)>& labelFor)
@@ -107,6 +144,12 @@ SpeciesForm::SpeciesForm(QWidget* parent)
     m_stack->addWidget(buildHintPage());
     m_stack->addWidget(buildFormPage());
     showNode(0);
+
+    // 每隔 30 秒把当前表单内容写入草稿，避免误关窗口后丢失输入。
+    m_draftTimer = new QTimer(this);
+    m_draftTimer->setInterval(30000);
+    connect(m_draftTimer, &QTimer::timeout, this, &SpeciesForm::saveDraft);
+    m_draftTimer->start();
 }
 
 void SpeciesForm::setDocument(TaxonomyDocument* document)
@@ -150,15 +193,56 @@ void SpeciesForm::showNode(int id)
         return;
     }
 
+    // 检测未保存的草稿：若存在且与文档当前内容不同，询问是否恢复。
+    SpeciesInfo draftInfo;
+    bool hasDraft = false;
+    {
+        QFile draftFile(draftPath());
+        if (draftFile.open(QIODevice::ReadOnly)) {
+            const QJsonObject obj =
+                QJsonDocument::fromJson(draftFile.readAll()).object();
+            if (!obj.isEmpty()) {
+                draftInfo = SpeciesInfo::fromJson(obj);
+                hasDraft = true;
+            }
+            draftFile.close();
+        }
+    }
+    if (hasDraft) {
+        const SpeciesInfo baseline = n->hasInfo ? n->info : SpeciesInfo();
+        if (!(draftInfo == baseline)) {
+            const QMessageBox::StandardButton answer = QMessageBox::question(
+                this, QStringLiteral("发现未保存草稿"),
+                QStringLiteral("检测到“%1”有一份未保存的草稿"
+                               "（上次编辑未保存就关闭了窗口）。\n\n"
+                               "是否恢复草稿内容？").arg(n->name),
+                QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes);
+            if (answer == QMessageBox::Yes) {
+                m_stack->setCurrentIndex(1);
+                if (m_formScroll)
+                    m_formScroll->verticalScrollBar()->setValue(0);
+                m_loading = true;
+                populateFromInfo(draftInfo);
+                m_photosAtSessionStart = draftInfo.photos;
+                m_copiedPhotosThisSession.clear();
+                m_loading = false;
+                return;
+            }
+        }
+    }
+
     m_stack->setCurrentIndex(1);
     if (m_formScroll)
         m_formScroll->verticalScrollBar()->setValue(0);
     m_loading = true;
     if (n->hasInfo) {
         populateFromInfo(n->info);
+        m_photosAtSessionStart = n->info.photos;
     } else {
         populateFromInfo(SpeciesInfo());
+        m_photosAtSessionStart.clear();
     }
+    m_copiedPhotosThisSession.clear();
     m_loading = false;
 }
 
@@ -237,6 +321,23 @@ QWidget* SpeciesForm::buildFormPage()
     connect(openPhotoButton, &QPushButton::clicked, this, &SpeciesForm::openSelectedPhoto);
     connect(m_photoList, &QListWidget::currentItemChanged,
             this, &SpeciesForm::onPhotoSelectionChanged);
+    // 双击缩略图打开全屏灯箱，浏览当前表单里的全部照片。
+    connect(m_photoList, &QListWidget::itemDoubleClicked, this,
+            [this](QListWidgetItem* item) {
+        QStringList names;
+        for (int i = 0; i < m_photoList->count(); ++i)
+            names.append(m_photoList->item(i)->data(Qt::UserRole).toString());
+        if (names.isEmpty())
+            return;
+        int start = 0;
+        if (item) {
+            const int idx = names.indexOf(item->data(Qt::UserRole).toString());
+            if (idx >= 0)
+                start = idx;
+        }
+        PhotoLightBox box(names, m_dataDir, start, this);
+        box.exec();
+    });
 
     // ---------------- 身份与描述 ----------------
     auto* identityBox = new QGroupBox(QStringLiteral("身份与描述"), content);
@@ -363,6 +464,19 @@ QWidget* SpeciesForm::buildFormPage()
     ++row;
 
     outer->addWidget(envBox);
+
+    // ---------------- 地理分布 ----------------
+    auto* regionBox = new QGroupBox(
+        QStringLiteral("地理分布（点击省份可多选原生分布省区）"), content);
+    auto* regionLayout = new QVBoxLayout(regionBox);
+    m_mapWidget = new ProvinceMapWidget(regionBox);
+    m_mapWidget->setMinimumHeight(380);
+    regionLayout->addWidget(m_mapWidget);
+    m_habitatEdit = new QLineEdit(regionBox);
+    m_habitatEdit->setPlaceholderText(
+        QStringLiteral("生境描述，例如：山地林缘、溪边湿地、农田、庭院…"));
+    regionLayout->addWidget(m_habitatEdit);
+    outer->addWidget(regionBox);
 
     // ---------------- 生长形态 ----------------
     auto* growthBox = new QGroupBox(QStringLiteral("生长形态"), content);
@@ -528,6 +642,8 @@ void SpeciesForm::populateFromInfo(const SpeciesInfo& info)
     m_zoneLow->setValue(info.hardinessZoneLow);
     m_zoneHigh->setValue(info.hardinessZoneHigh);
     setCheckSet(info.soilTypes, m_soilChecks, predefinedSoilTypes());
+    m_mapWidget->setSelected(info.nativeRegions);
+    m_habitatEdit->setText(info.habitat);
 
     m_habitCombo->setCurrentIndex(comboIndexByKey(m_habitCombo, habitToKey(info.habit)));
     m_lifecycleCombo->setCurrentIndex(
@@ -603,6 +719,8 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
     out.phMax = m_phMax->value();
     out.hardinessZoneLow = m_zoneLow->value();
     out.hardinessZoneHigh = m_zoneHigh->value();
+    out.nativeRegions = m_mapWidget->selected();
+    out.habitat = m_habitatEdit->text().trimmed();
 
     for (QCheckBox* box : m_soilChecks) {
         if (box->isChecked())
@@ -638,6 +756,9 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
     std::sort(out.bloomMonths.begin(), out.bloomMonths.end());
     std::sort(out.fruitMonths.begin(), out.fruitMonths.end());
 
+    // 属性名允许用户直接编辑表格，可能出现两行同名；同名会让 QMap 静默覆盖，
+    // 这里检测出来并在下方作为校验错误提示，而不是悄悄丢数据。
+    QString duplicateCustomKey;
     for (int row = 0; row < m_customTable->rowCount(); ++row) {
         const QString key = m_customTable->item(row, 0)
             ? m_customTable->item(row, 0)->text().trimmed()
@@ -647,6 +768,10 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
         const QString value = m_customTable->item(row, 1)
             ? m_customTable->item(row, 1)->text()
             : QString();
+        if (out.custom.contains(key)) {
+            duplicateCustomKey = key;
+            continue;
+        }
         out.custom.insert(key, value);
     }
 
@@ -657,11 +782,16 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
             out.photos.append(fileName);
     }
 
-    if (out.temperatureMinC > out.temperatureMaxC)
+    // 未填写的一端不参与“填反”判断：温度 -100、湿度 0、pH 0.0 都是未填写哨兵，
+    // 与耐寒区/尺寸一致——只填低值（如“最低 15 ℃”）是合法输入，
+    // 只读详情页也会按“最低/最高 xx”正常显示。
+    if (out.temperatureMinC != -100 && out.temperatureMaxC != -100
+        && out.temperatureMinC > out.temperatureMaxC)
         error = QStringLiteral("温度范围填反了（最低值大于最高值）。");
-    else if (out.humidityMinPct > out.humidityMaxPct)
+    else if (out.humidityMinPct > 0 && out.humidityMaxPct > 0
+             && out.humidityMinPct > out.humidityMaxPct)
         error = QStringLiteral("空气湿度范围填反了。");
-    else if (out.phMin > out.phMax)
+    else if (out.phMin > 0.0 && out.phMax > 0.0 && out.phMin > out.phMax)
         error = QStringLiteral("pH 范围填反了。");
     else if (out.hardinessZoneLow > 0 && out.hardinessZoneHigh > 0
              && out.hardinessZoneLow > out.hardinessZoneHigh)
@@ -670,6 +800,9 @@ bool SpeciesForm::collectFromForm(SpeciesInfo& out, QString& error) const
              || (out.spreadMinCm > 0 && out.spreadMaxCm > 0
                  && out.spreadMinCm > out.spreadMaxCm))
         error = QStringLiteral("尺寸范围填反了。");
+    else if (!duplicateCustomKey.isEmpty())
+        error = QStringLiteral("扩展属性中存在同名属性“%1”，请删除重复行或改名。")
+                    .arg(duplicateCustomKey);
     else
         error.clear();
 
@@ -697,24 +830,40 @@ bool SpeciesForm::requestSave()
         return false;
     }
 
-    // 保存成功后再清理“本次会话添加但最终没有被引用”的照片文件，
-    // 例如用户添加照片后又从资料里移除。
-    QStringList stillReferenced;
+    // 保存成功后清理不再被引用的照片文件（只有全库没有任何节点再引用时才删）：
+    // 1. 进入本次编辑会话时被引用、现在已从资料中移除的历史照片；
+    // 2. 本次会话新复制但最终没有被引用的照片（添加后又从列表移除）。
+    const QSet<QString> referencedElsewhere =
+        referencedPhotosExcept(m_document, m_nodeId);
     const QDir photosDir(QDir(m_dataDir).filePath(QStringLiteral("photos")));
+    auto removeIfOrphan = [&](const QString& fileName) {
+        if (referencedElsewhere.contains(fileName))
+            return;
+        const QString path = photosDir.filePath(fileName);
+        if (QFile::exists(path) && !QFile::remove(path))
+            qWarning() << "移除不再被引用的照片失败:" << path;
+    };
+
+    for (const QString& fileName : m_photosAtSessionStart) {
+        if (!collected.photos.contains(fileName))
+            removeIfOrphan(fileName);
+    }
+
+    QStringList stillReferenced;
     for (const QString& fileName : m_copiedPhotosThisSession) {
         if (collected.photos.contains(fileName)) {
             stillReferenced.append(fileName);
             continue;
         }
-        const QString copied = photosDir.filePath(fileName);
-        if (QFile::exists(copied) && !QFile::remove(copied))
-            qWarning() << "移除未引用的会话照片失败:" << copied;
+        removeIfOrphan(fileName);
     }
     m_copiedPhotosThisSession = stillReferenced;
+    m_photosAtSessionStart = collected.photos;
 
     const SpeciesInfo* saved = m_document->infoOf(m_nodeId);
     if (saved)
         populateFromInfo(*saved);
+    clearDraft();
     emit infoSaved();
     return true;
 }
@@ -775,25 +924,29 @@ QString SpeciesForm::resolvePhotoPath(const QString& relativeName) const
     return QDir(m_dataDir).filePath(QStringLiteral("photos") + QLatin1Char('/') + relativeName);
 }
 
+QListWidgetItem* SpeciesForm::buildPhotoItem(const QString& relativeName) const
+{
+    const QString fullPath = resolvePhotoPath(relativeName);
+    auto* item = new QListWidgetItem(QFileInfo(relativeName).fileName());
+    item->setData(Qt::UserRole, relativeName);
+    item->setToolTip(fullPath);
+    const QPixmap pixmap = PhotoImageUtils::loadThumbnail(fullPath);
+    if (!pixmap.isNull()) {
+        item->setIcon(QIcon(pixmap));
+    } else {
+        item->setText(relativeName + QStringLiteral("（缺失）"));
+    }
+    return item;
+}
+
 void SpeciesForm::refreshPhotoList(const SpeciesInfo& info)
 {
     m_photoList->clear();
     QString firstPhoto;
     for (const QString& relativeName : info.photos) {
-        const QString fullPath = resolvePhotoPath(relativeName);
-        auto* item = new QListWidgetItem(QFileInfo(relativeName).fileName());
-        item->setData(Qt::UserRole, relativeName);
-        item->setToolTip(fullPath);
-        QPixmap pixmap(fullPath);
-        if (!pixmap.isNull()) {
-            item->setIcon(QIcon(pixmap.scaled(
-                QSize(88, 88), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
-        } else {
-            item->setText(relativeName + QStringLiteral("（缺失）"));
-        }
         if (firstPhoto.isEmpty())
             firstPhoto = relativeName;
-        m_photoList->addItem(item);
+        m_photoList->addItem(buildPhotoItem(relativeName));
     }
 
     // 有照片时默认高亮第一张并展示；没有则显示占位提示。
@@ -818,8 +971,8 @@ void SpeciesForm::setPhotoPreview(const QString& relativeName)
     if (relativeName.isEmpty()) {
         m_photoPreviewOriginal = QPixmap();
     } else {
-        const QPixmap loaded(resolvePhotoPath(relativeName));
-        m_photoPreviewOriginal = loaded.isNull() ? QPixmap() : loaded;
+        m_photoPreviewOriginal =
+            PhotoImageUtils::loadPreview(resolvePhotoPath(relativeName));
     }
     updatePhotoPreview();
 }
@@ -859,6 +1012,13 @@ void SpeciesForm::addPhotos()
         QStringLiteral("图片 (*.png *.jpg *.jpeg *.bmp *.webp);;所有文件 (*)"));
     if (files.isEmpty())
         return;
+    addPhotosFromFiles(files);
+}
+
+void SpeciesForm::addPhotosFromFiles(const QStringList& files)
+{
+    if (m_nodeId <= 0 || files.isEmpty())
+        return;
 
     QDir photosDir(QDir(m_dataDir).filePath(QStringLiteral("photos")));
     if (!photosDir.exists() && !QDir().mkpath(photosDir.absolutePath())) {
@@ -896,28 +1056,68 @@ void SpeciesForm::addPhotos()
     if (added.isEmpty())
         return;
 
-    const TaxonNode* n = m_document ? m_document->node(m_nodeId) : nullptr;
-    SpeciesInfo info;
-    if (n && n->hasInfo)
-        info = n->info;
-    info.photos.append(added);
-    QString error;
-    if (!m_document->setInfo(m_nodeId, info, &error)) {
-        // 写入数据库失败时，清理本次已经复制到照片目录的文件，避免残留。
-        for (const QString& fileName : added) {
-            const QString copied = photosDir.filePath(fileName);
-            if (QFile::exists(copied))
-                QFile::remove(copied);
-        }
-        QMessageBox::warning(this, QStringLiteral("无法保存照片信息"), error);
-        return;
-    }
+    // 照片添加只改表单列表，不写文档：与其他未保存修改一起，
+    // 等用户点“保存”时统一提交；点“取消”时会话复制的文件由编辑窗口清理。
     for (const QString& fileName : added) {
+        m_photoList->addItem(buildPhotoItem(fileName));
         if (!m_copiedPhotosThisSession.contains(fileName))
             m_copiedPhotosThisSession.append(fileName);
     }
-    refreshPhotoList(info);
-    emit infoSaved();
+    // 高亮刚添加的第一张照片，currentItemChanged 会自动切换大图预览。
+    m_photoList->setCurrentRow(m_photoList->count() - added.size());
+}
+
+void SpeciesForm::dragEnterEvent(QDragEnterEvent* event)
+{
+    if (m_nodeId > 0 && event->mimeData()
+        && event->mimeData()->hasUrls()) {
+        event->acceptProposedAction();
+        return;
+    }
+    QWidget::dragEnterEvent(event);
+}
+
+void SpeciesForm::dropEvent(QDropEvent* event)
+{
+    if (m_nodeId <= 0 || !event->mimeData()) {
+        QWidget::dropEvent(event);
+        return;
+    }
+    QStringList files;
+    for (const QUrl& url : event->mimeData()->urls()) {
+        if (!url.isLocalFile())
+            continue;
+        const QString path = url.toLocalFile();
+        if (QFileInfo(path).isFile())
+            files.append(path);
+    }
+    if (!files.isEmpty()) {
+        event->acceptProposedAction();
+        addPhotosFromFiles(files);
+    } else {
+        QWidget::dropEvent(event);
+    }
+}
+
+void SpeciesForm::keyPressEvent(QKeyEvent* event)
+{
+    // Ctrl+V 从剪贴板粘贴图片。
+    if (event->matches(QKeySequence::Paste) && m_nodeId > 0) {
+        const QClipboard* clipboard = QApplication::clipboard();
+        const QImage image = clipboard ? clipboard->image() : QImage();
+        if (!image.isNull()) {
+            const QString tmpPath =
+                QDir::temp().filePath(QStringLiteral("plantmap_paste_%1.png")
+                                          .arg(QDateTime::currentMSecsSinceEpoch()));
+            if (image.save(tmpPath, "PNG")) {
+                addPhotosFromFiles({ tmpPath });
+                QFile::remove(tmpPath);
+                event->accept();
+                return;
+            }
+        }
+    }
+    QWidget::keyPressEvent(event);
 }
 
 void SpeciesForm::removeSelectedPhotos()
@@ -926,23 +1126,13 @@ void SpeciesForm::removeSelectedPhotos()
     if (selected.isEmpty())
         return;
 
-    const TaxonNode* n = m_document ? m_document->node(m_nodeId) : nullptr;
-    if (!n || !n->hasInfo)
-        return;
+    // 与添加一样，移除也只改表单列表；被移除的历史照片文件
+    // 在保存成功后由 requestSave() 按会话快照清理。
+    for (QListWidgetItem* item : selected)
+        delete m_photoList->takeItem(m_photoList->row(item));
 
-    SpeciesInfo info = n->info;
-    for (const QListWidgetItem* item : selected) {
-        const QString relativeName = item->data(Qt::UserRole).toString();
-        info.photos.removeAll(relativeName);
-    }
-
-    QString error;
-    if (!m_document->setInfo(m_nodeId, info, &error)) {
-        QMessageBox::warning(this, QStringLiteral("无法保存照片信息"), error);
-        return;
-    }
-    refreshPhotoList(info);
-    emit infoSaved();
+    QListWidgetItem* current = m_photoList->currentItem();
+    setPhotoPreview(current ? current->data(Qt::UserRole).toString() : QString());
 }
 
 void SpeciesForm::openSelectedPhoto()
@@ -996,4 +1186,37 @@ void SpeciesForm::removeCustomProperty()
     const int row = m_customTable->currentRow();
     if (row >= 0)
         m_customTable->removeRow(row);
+}
+
+QString SpeciesForm::draftPath() const
+{
+    return QDir(m_dataDir).filePath(QStringLiteral("draft_%1.json").arg(m_nodeId));
+}
+
+void SpeciesForm::saveDraft()
+{
+    if (m_nodeId <= 0 || m_loading || !m_document)
+        return;
+    SpeciesInfo info;
+    QString error;
+    if (!collectFromForm(info, error))
+        return;  // 校验失败时不写草稿
+    if (info.isEmpty()) {
+        clearDraft();
+        return;
+    }
+    QFile file(draftPath());
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(info.toJson()).toJson(QJsonDocument::Indented));
+        file.close();
+    }
+}
+
+void SpeciesForm::clearDraft()
+{
+    if (m_nodeId <= 0)
+        return;
+    const QString path = draftPath();
+    if (QFile::exists(path))
+        QFile::remove(path);
 }

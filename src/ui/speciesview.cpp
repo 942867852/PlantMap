@@ -1,11 +1,16 @@
 #include "speciesview.h"
 #include "displayformat.h"
+#include "photoimageutils.h"
+#include "photolightbox.h"
+#include "province_map_widget.h"
+#include "china_map_data.h"
 
 #include <QDir>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QGroupBox>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
@@ -35,6 +40,18 @@ QString joinChecked(const QSet<QString>& keys,
     }
     return labels.isEmpty() ? QStringLiteral("未填写")
                             : labels.join(QStringLiteral("、"));
+}
+
+// adcode → 省名（如 "410000" → "河南省"），用于展示原生分布。
+QString provinceNameOf(const QString& adcode)
+{
+    static const QHash<QString, QString> map = [] {
+        QHash<QString, QString> m;
+        for (const ChinaProvinceShape& s : chinaProvinceShapes())
+            m.insert(s.adcode, s.name);
+        return m;
+    }();
+    return map.value(adcode, adcode);
 }
 
 } // namespace
@@ -102,6 +119,17 @@ void SpeciesViewForm::setEditEnabled(bool enabled)
         m_editButton->setEnabled(enabled);
 }
 
+void SpeciesViewForm::setFavorite(bool favorite)
+{
+    if (!m_favoriteButton)
+        return;
+    // 用信号阻塞避免 setChecked 再次触发 favoriteToggled。
+    const QSignalBlocker blocker(m_favoriteButton);
+    m_favoriteButton->setChecked(favorite);
+    m_favoriteButton->setText(favorite ? QStringLiteral("★ 已收藏")
+                                       : QStringLiteral("☆ 收藏"));
+}
+
 QWidget* SpeciesViewForm::buildEmptyPage()
 {
     auto* page = new QWidget(this);
@@ -142,10 +170,25 @@ QWidget* SpeciesViewForm::buildDetailPage()
     m_editButton = new QPushButton(QStringLiteral("编辑资料…"), content);
     m_editButton->setMinimumHeight(30);
     m_editButton->setToolTip(QStringLiteral("在独立窗口中修改这个植物的属性"));
-    outer->addWidget(m_editButton, 0, Qt::AlignRight);
+    m_favoriteButton = new QPushButton(QStringLiteral("☆ 收藏"), content);
+    m_favoriteButton->setMinimumHeight(30);
+    m_favoriteButton->setCheckable(true);
+    m_favoriteButton->setToolTip(QStringLiteral("收藏这个植物，方便在“收藏夹”里快速找到"));
+
+    auto* actionRow = new QHBoxLayout;
+    actionRow->addWidget(m_favoriteButton);
+    actionRow->addStretch();
+    actionRow->addWidget(m_editButton);
+    outer->addLayout(actionRow);
+
     connect(m_editButton, &QPushButton::clicked, this, [this] {
         if (m_nodeId > 0)
             emit editRequested(m_nodeId);
+    });
+    connect(m_favoriteButton, &QPushButton::clicked, this, [this](bool checked) {
+        setFavorite(checked);
+        if (m_nodeId > 0)
+            emit favoriteToggled(m_nodeId);
     });
 
     // ---------------- 图片 ----------------
@@ -175,6 +218,21 @@ QWidget* SpeciesViewForm::buildDetailPage()
     outer->addWidget(photoBox);
     connect(m_photoList, &QListWidget::currentItemChanged,
             this, &SpeciesViewForm::onPhotoSelectionChanged);
+    // 双击缩略图打开全屏灯箱，支持翻页浏览。
+    connect(m_photoList, &QListWidget::itemDoubleClicked, this,
+            [this](QListWidgetItem* item) {
+        const TaxonNode* n = m_document ? m_document->node(m_nodeId) : nullptr;
+        if (!n || n->info.photos.isEmpty())
+            return;
+        int start = 0;
+        if (item) {
+            const int idx = n->info.photos.indexOf(item->data(Qt::UserRole).toString());
+            if (idx >= 0)
+                start = idx;
+        }
+        PhotoLightBox box(n->info.photos, m_dataDir, start, this);
+        box.exec();
+    });
 
     // ---------------- 基本信息 ----------------
     auto* identityBox = new QGroupBox(QStringLiteral("基本信息"), content);
@@ -210,6 +268,19 @@ QWidget* SpeciesViewForm::buildDetailPage()
     m_zoneValue = makeValueLabel(envBox);
     envForm->addRow(QStringLiteral("耐寒区 (USDA)："), m_zoneValue);
     outer->addWidget(envBox);
+
+    // ---------------- 地理分布 ----------------
+    auto* regionBox = new QGroupBox(QStringLiteral("地理分布"), content);
+    auto* regionLayout = new QVBoxLayout(regionBox);
+    m_mapWidget = new ProvinceMapWidget(regionBox);
+    m_mapWidget->setEditable(false);
+    m_mapWidget->setMinimumHeight(450);
+    regionLayout->addWidget(m_mapWidget);
+    m_regionValue = makeValueLabel(regionBox);
+    regionLayout->addWidget(m_regionValue);
+    m_habitatValue = makeValueLabel(regionBox);
+    regionLayout->addWidget(m_habitatValue);
+    outer->addWidget(regionBox);
 
     // ---------------- 生长形态 ----------------
     auto* growthBox = new QGroupBox(QStringLiteral("生长形态"), content);
@@ -308,6 +379,20 @@ void SpeciesViewForm::refreshDetail()
                 .arg(info.hardinessZoneHigh));
     }
 
+    // 地理分布
+    m_mapWidget->setSelected(info.nativeRegions);
+    QStringList regionNames;
+    for (const QString& adcode : info.nativeRegions)
+        regionNames.append(provinceNameOf(adcode));
+    m_regionValue->setText(
+        regionNames.isEmpty()
+            ? QStringLiteral("原生分布：未填写")
+            : QStringLiteral("原生分布：%1").arg(regionNames.join(QStringLiteral("、"))));
+    m_habitatValue->setText(
+        info.habitat.trimmed().isEmpty()
+            ? QStringLiteral("生境：未填写")
+            : QStringLiteral("生境：%1").arg(info.habitat));
+
     m_habitValue->setText(habitLabel(info.habit));
     m_lifecycleValue->setText(lifecycleLabel(info.lifeCycle));
     m_foliageValue->setText(foliageLabel(info.foliage));
@@ -358,10 +443,9 @@ void SpeciesViewForm::refreshPhotoList(const QStringList& photos)
         auto* item = new QListWidgetItem(QFileInfo(relativeName).fileName());
         item->setData(Qt::UserRole, relativeName);
         item->setToolTip(fullPath);
-        QPixmap pixmap(fullPath);
+        const QPixmap pixmap = PhotoImageUtils::loadThumbnail(fullPath);
         if (!pixmap.isNull()) {
-            item->setIcon(QIcon(pixmap.scaled(
-                QSize(88, 88), Qt::KeepAspectRatio, Qt::SmoothTransformation)));
+            item->setIcon(QIcon(pixmap));
         } else {
             item->setText(relativeName + QStringLiteral("（缺失）"));
         }
@@ -390,8 +474,8 @@ void SpeciesViewForm::setPhotoPreview(const QString& relativeName)
     if (relativeName.isEmpty()) {
         m_photoPreviewOriginal = QPixmap();
     } else {
-        const QPixmap loaded(resolvePhotoPath(relativeName));
-        m_photoPreviewOriginal = loaded.isNull() ? QPixmap() : loaded;
+        m_photoPreviewOriginal =
+            PhotoImageUtils::loadPreview(resolvePhotoPath(relativeName));
     }
     updatePhotoPreview();
 }

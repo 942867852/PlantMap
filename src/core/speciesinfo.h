@@ -128,6 +128,10 @@ struct SpeciesInfo {
     int hardinessZoneLow = 0;    // USDA 耐寒区，0 表示未填写
     int hardinessZoneHigh = 0;
 
+    // ---- 地理分布 ----
+    QStringList nativeRegions;   // 原生分布省区（省级 adcode，如 "410000"）
+    QString habitat;             // 生境描述（山地/湿地/农田/林下…）
+
     // ---- 生长形态 ----
     GrowthHabit habit = GrowthHabit::Unknown;
     LifeCycle lifeCycle = LifeCycle::Unknown;

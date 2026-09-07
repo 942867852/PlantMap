@@ -7,6 +7,7 @@
 
 #include "dbversion.h"
 #include "displayformat.h"
+#include "pinyin.h"
 #include "taxondocument.h"
 
 namespace {
@@ -53,6 +54,29 @@ QJsonObject legacyV1Database()
     taxonomy[QStringLiteral("roots")] = QJsonArray { kingdom };
     root[QStringLiteral("taxonomy")] = taxonomy;
     return root;
+}
+
+QJsonObject makeChainNode(int id, const QString& rank, const QString& name,
+                          const QJsonArray& children = QJsonArray())
+{
+    QJsonObject node;
+    node[QStringLiteral("id")] = id;
+    node[QStringLiteral("rank")] = rank;
+    node[QStringLiteral("name")] = name;
+    node[QStringLiteral("children")] = children;
+    return node;
+}
+
+QJsonObject wrappedDb(const QJsonArray& roots)
+{
+    QJsonObject taxonomy;
+    taxonomy[QStringLiteral("next_id")] = 100;
+    taxonomy[QStringLiteral("roots")] = roots;
+    QJsonObject db;
+    db[QStringLiteral("app")] = QStringLiteral("PlantMap");
+    db[QStringLiteral("schema_version")] = DbVersion::kCurrentSchemaVersion;
+    db[QStringLiteral("taxonomy")] = taxonomy;
+    return db;
 }
 
 } // namespace
@@ -170,11 +194,73 @@ int main(int argc, char* argv[])
               && migratedRoot.contains(QStringLiteral("children")),
           QStringLiteral("2 → 3：版本号推进并补齐 children"));
 
-    // 15. 链式迁移 1 → 2 → 3
+    // 15. 链式迁移 1 → 2 → 3 → 4
     QJsonObject chainDb = v1;
     check(DbVersion::migrateToLatest(chainDb, &error)
-              && DbVersion::schemaVersionOf(chainDb) == 3,
-          QStringLiteral("1 → 3 链式迁移成功：%1").arg(error));
+              && DbVersion::schemaVersionOf(chainDb) == 4,
+          QStringLiteral("1 → 4 链式迁移成功：%1").arg(error));
+
+    // 15b. 3 → 4 迁移：为 info 补齐 v4 新增字段（native_regions / habitat）
+    QJsonObject v3Root = makeChainNode(1, QStringLiteral("kingdom"), QStringLiteral("植物界"));
+    QJsonObject v3Info;
+    v3Info[QStringLiteral("scientific_name")] = QStringLiteral("Rosa rugosa");
+    v3Root[QStringLiteral("info")] = v3Info;
+    QJsonObject v3Db;
+    v3Db[QStringLiteral("app")] = QStringLiteral("PlantMap");
+    v3Db[QStringLiteral("schema_version")] = 3;
+    QJsonObject v3Tax;
+    v3Tax[QStringLiteral("next_id")] = 2;
+    v3Tax[QStringLiteral("roots")] = QJsonArray { v3Root };
+    v3Db[QStringLiteral("taxonomy")] = v3Tax;
+
+    const QJsonObject v4 = DbVersion::migrateV3ToV4(v3Db);
+    check(DbVersion::schemaVersionOf(v4) == 4,
+          QStringLiteral("3 → 4：版本号推进到 4"));
+    const QJsonObject migratedInfo = v4.value(QStringLiteral("taxonomy"))
+                                         .toObject()
+                                         .value(QStringLiteral("roots"))
+                                         .toArray().at(0).toObject()
+                                         .value(QStringLiteral("info"))
+                                         .toObject();
+    check(migratedInfo.contains(QStringLiteral("native_regions"))
+              && migratedInfo.value(QStringLiteral("native_regions")).toArray().isEmpty(),
+          QStringLiteral("3 → 4：info 补上空的 native_regions"));
+    check(migratedInfo.contains(QStringLiteral("habitat"))
+              && migratedInfo.value(QStringLiteral("habitat")).toString().isEmpty(),
+          QStringLiteral("3 → 4：info 补上空的 habitat"));
+
+    // 15c. 迁移后的合法 v4 数据能被当前版本加载
+    QJsonObject v3Sp2 = makeChainNode(7, QStringLiteral("species"), QStringLiteral("玫瑰"));
+    QJsonObject v3Info2;
+    v3Info2[QStringLiteral("scientific_name")] = QStringLiteral("Rosa rugosa");
+    v3Sp2[QStringLiteral("info")] = v3Info2;
+    QJsonObject v3Db2;
+    v3Db2[QStringLiteral("app")] = QStringLiteral("PlantMap");
+    v3Db2[QStringLiteral("schema_version")] = 3;
+    QJsonObject v3Tax2;
+    v3Tax2[QStringLiteral("next_id")] = 8;
+    v3Tax2[QStringLiteral("roots")] = QJsonArray {
+        makeChainNode(1, QStringLiteral("kingdom"), QStringLiteral("植物界"), {
+            makeChainNode(2, QStringLiteral("phylum"), QStringLiteral("被子植物门"), {
+                makeChainNode(3, QStringLiteral("class"), QStringLiteral("木兰纲"), {
+                    makeChainNode(4, QStringLiteral("order"), QStringLiteral("蔷薇目"), {
+                        makeChainNode(5, QStringLiteral("family"), QStringLiteral("蔷薇科"), {
+                            makeChainNode(6, QStringLiteral("genus"), QStringLiteral("蔷薇属"),
+                                          { v3Sp2 })
+                        })
+                    })
+                })
+            })
+        })
+    };
+    v3Db2[QStringLiteral("taxonomy")] = v3Tax2;
+    const QJsonObject v4b = DbVersion::migrateV3ToV4(v3Db2);
+    TaxonomyDocument v4Doc;
+    check(v4Doc.loadFromJson(v4b, &error),
+          QStringLiteral("迁移后的合法 v4 数据可加载：%1").arg(error));
+    check(v4Doc.infoCount() == 1 && v4Doc.node(7)
+              && v4Doc.node(7)->info.scientificName == QStringLiteral("Rosa rugosa"),
+          QStringLiteral("迁移后物种资料与拉丁学名保留"));
 
     // 16. loadFromFile 先迁移再解析
     QTemporaryFile file(QDir::temp().filePath(
@@ -246,7 +332,7 @@ int main(int argc, char* argv[])
     // 21. 载入时校验层级，拒绝顶层非“界”的文件
     QJsonObject invalidRoot;
     invalidRoot[QStringLiteral("app")] = QStringLiteral("PlantMap");
-    invalidRoot[QStringLiteral("schema_version")] = 3;
+    invalidRoot[QStringLiteral("schema_version")] = DbVersion::kCurrentSchemaVersion;
     QJsonObject invalidTaxonomy;
     invalidTaxonomy[QStringLiteral("next_id")] = 2;
     QJsonObject invalidNode;
@@ -261,6 +347,141 @@ int main(int argc, char* argv[])
     QString invalidError;
     check(!invalidDoc.loadFromJson(invalidRoot, &invalidError),
           QStringLiteral("层级校验拒绝顶层非“界”的分类文件"));
+
+    // 22. fromJson 数值钳制（防止手编 JSON 越界值导致编辑页假性“未保存”）
+    QJsonObject weird;
+    weird[QStringLiteral("humidity_min_pct")] = -20;
+    weird[QStringLiteral("humidity_max_pct")] = 500;
+    weird[QStringLiteral("hardiness_zone_low")] = 99;
+    weird[QStringLiteral("temperature_min_c")] = -150;
+    weird[QStringLiteral("height_min_cm")] = -5;
+    weird[QStringLiteral("ph_max")] = 20.0;
+    const SpeciesInfo clamped = SpeciesInfo::fromJson(weird);
+    check(clamped.humidityMinPct == 0 && clamped.humidityMaxPct == 100,
+          QStringLiteral("湿度越界值被钳制到 0-100"));
+    check(clamped.hardinessZoneLow == 13,
+          QStringLiteral("耐寒区越界值被钳制到 13"));
+    check(clamped.temperatureMinC == -100,
+          QStringLiteral("温度越界值被钳制到 -100"));
+    check(clamped.heightMinCm == 0,
+          QStringLiteral("株高负值被钳制到 0"));
+    check(qAbs(clamped.phMax - 14.0) < 0.000001,
+          QStringLiteral("pH 越界值被钳制到 14"));
+
+    // 23. 病态深层嵌套在解析阶段直接拒绝（防栈溢出）
+    QJsonObject deepNode = makeChainNode(20, QStringLiteral("subspecies"),
+                                         QStringLiteral("深层"));
+    for (int i = 19; i >= 1; --i) {
+        deepNode = makeChainNode(i, QStringLiteral("kingdom"),
+                                 QStringLiteral("n%1").arg(i),
+                                 { deepNode });
+    }
+    TaxonomyDocument deepDoc;
+    QString deepError;
+    check(!deepDoc.loadFromJson(wrappedDb({ deepNode }), &deepError)
+              && deepError.contains(QStringLiteral("嵌套过深")),
+          QStringLiteral("拒绝超深嵌套的 JSON（解析阶段直接报错）"));
+
+    // 24. 规范化后为空的拉丁名给出明确错误，而不是误报“重复”
+    QJsonObject badSpecies = makeChainNode(7, QStringLiteral("species"),
+                                           QStringLiteral("怪植物"));
+    QJsonObject badInfo;
+    badInfo[QStringLiteral("scientific_name")] = QStringLiteral("!!!");
+    badSpecies[QStringLiteral("info")] = badInfo;
+    const QJsonObject badDb = wrappedDb({
+        makeChainNode(1, QStringLiteral("kingdom"), QStringLiteral("植物界"), {
+            makeChainNode(2, QStringLiteral("phylum"), QStringLiteral("被子植物门"), {
+                makeChainNode(3, QStringLiteral("class"), QStringLiteral("木兰纲"), {
+                    makeChainNode(4, QStringLiteral("order"), QStringLiteral("蔷薇目"), {
+                        makeChainNode(5, QStringLiteral("family"), QStringLiteral("蔷薇科"), {
+                            makeChainNode(6, QStringLiteral("genus"), QStringLiteral("蔷薇属"), {
+                                badSpecies }) }) }) }) }) }) });
+    TaxonomyDocument badDoc;
+    QString badError;
+    check(!badDoc.loadFromJson(badDb, &badError)
+              && badError.contains(QStringLiteral("规范化后为空")),
+          QStringLiteral("规范化后为空的拉丁名给出明确错误：%1").arg(badError));
+
+    // 25. 变种/变型/品种等级（种下并列末级）
+    TaxonomyDocument rankDoc;
+    QString rankError;
+    const int speciesId2 = appendChain(rankDoc,
+        { QStringLiteral("植物界"), QStringLiteral("被子植物门"),
+          QStringLiteral("木兰纲"), QStringLiteral("蔷薇目"),
+          QStringLiteral("蔷薇科"), QStringLiteral("蔷薇属"),
+          QStringLiteral("玫瑰") }, &rankError);
+    const int varietyId = rankDoc.addNode(speciesId2, QStringLiteral("白玫瑰"),
+                                          TaxonRank::Variety, &rankError);
+    check(varietyId > 0 && rankDoc.node(varietyId)->rank == TaxonRank::Variety,
+          QStringLiteral("种下可添加“变种”"));
+    const int formId = rankDoc.addNode(speciesId2, QStringLiteral("重瓣型"),
+                                       TaxonRank::Form, &rankError);
+    check(formId > 0 && rankDoc.node(formId)->rank == TaxonRank::Form,
+          QStringLiteral("种下可添加“变型”"));
+    const int cultivarId = rankDoc.addNode(speciesId2, QStringLiteral("丰花"),
+                                           TaxonRank::Cultivar, &rankError);
+    check(cultivarId > 0 && rankDoc.node(cultivarId)->rank == TaxonRank::Cultivar,
+          QStringLiteral("种下可添加“品种”"));
+    check(rankDoc.addNode(varietyId, QStringLiteral("再下级"), &rankError) == 0,
+          QStringLiteral("变种下禁止再添加下级"));
+    check(rankDoc.addNode(speciesId2, QStringLiteral("错等级"),
+                          TaxonRank::Family, &rankError) == 0,
+          QStringLiteral("种下指定非法等级被拒绝"));
+
+    // 26. 含变种/品种的库 JSON 往返
+    const QJsonObject rankSnap = rankDoc.toJson();
+    TaxonomyDocument rankLoaded;
+    check(rankLoaded.loadFromJson(rankSnap, &rankError),
+          QStringLiteral("含变种/品种的库 JSON 往返成功"));
+
+    // 27. A1 地理分布字段（原生分布省区 + 生境）
+    QJsonObject regionJson;
+    regionJson[QStringLiteral("native_regions")] =
+        QJsonArray { QStringLiteral("410000"), QStringLiteral("410000"),
+                     QStringLiteral("41000"), QStringLiteral("河南省") };
+    regionJson[QStringLiteral("habitat")] = QStringLiteral("山地林缘");
+    const SpeciesInfo regionInfo = SpeciesInfo::fromJson(regionJson);
+    check(regionInfo.nativeRegions == QStringList { QStringLiteral("410000") },
+          QStringLiteral("原生分布只保留合法 6 位 adcode（去重、过滤非法）"));
+    check(regionInfo.habitat == QStringLiteral("山地林缘"),
+          QStringLiteral("生境文本读取正确"));
+    check(regionInfo.toJson().value(QStringLiteral("native_regions")).toArray().at(0).toString()
+              == QStringLiteral("410000"),
+          QStringLiteral("原生分布 toJson 写回"));
+
+    // 28. 拼音首字母检索
+    check(Pinyin::initials(QStringLiteral("银杏")) == QStringLiteral("YX"),
+          QStringLiteral("拼音首字母：银杏→YX"));
+    check(Pinyin::initials(QStringLiteral("牡丹")) == QStringLiteral("MD"),
+          QStringLiteral("拼音首字母：牡丹→MD"));
+    check(Pinyin::matchesInitials(QStringLiteral("银杏"), QStringLiteral("yx")),
+          QStringLiteral("首字母 yx 可匹配银杏"));
+
+    // 29. cloneSubtree 复制子树 + 拉丁名后缀
+    TaxonomyDocument cloneDoc;
+    const int srcSp = appendChain(cloneDoc,
+        { QStringLiteral("植物界"), QStringLiteral("被子植物门"),
+          QStringLiteral("木兰纲"), QStringLiteral("蔷薇目"),
+          QStringLiteral("蔷薇科"), QStringLiteral("蔷薇属"),
+          QStringLiteral("玫瑰") }, &rankError);
+    SpeciesInfo srcInfo;
+    srcInfo.scientificName = QStringLiteral("Rosa rugosa");
+    cloneDoc.setInfo(srcSp, srcInfo, &rankError);
+    const int genusId2 = cloneDoc.node(srcSp)->parentId;
+    const int cloneId = cloneDoc.cloneSubtree(srcSp, genusId2,
+                                              QStringLiteral("玫瑰副本"), &rankError);
+    check(cloneId > 0 && cloneDoc.node(cloneId)->name == QStringLiteral("玫瑰副本"),
+          QStringLiteral("复制子树成功且副本名正确"));
+    check(cloneDoc.node(cloneId)->info.scientificName != QStringLiteral("Rosa rugosa")
+              && cloneDoc.node(cloneId)->info.scientificName.contains(QStringLiteral("dup")),
+          QStringLiteral("副本拉丁名自动加后缀避免冲突"));
+
+    // 30. restoreSubtreeFromJson 恢复被删子树（撤销删除用）
+    const QJsonObject subJson = cloneDoc.subtreeToJson(cloneId);
+    cloneDoc.removeNode(cloneId, &rankError);
+    const int restoredId = cloneDoc.restoreSubtreeFromJson(subJson, genusId2, &rankError);
+    check(restoredId > 0 && cloneDoc.node(restoredId) != nullptr,
+          QStringLiteral("restoreSubtreeFromJson 恢复被删子树"));
 
     qInfo() << (failures == 0 ? QStringLiteral("全部自检通过")
                               : QStringLiteral("存在 %1 项失败").arg(failures));

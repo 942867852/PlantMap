@@ -61,8 +61,20 @@ public:
     // parentId == 0 时新建“界”顶级节点；否则自动推导下一级。
     // 成功返回新节点 id；失败返回 0 并写 err。
     int addNode(int parentId, const QString& name, QString* error = nullptr);
+    // 显式指定等级的重载：用于在“种”下新建 变种/变型/品种（与亚种同级）。
+    // 非“种”父节点时，rank 必须等于自动推导的下一级。
+    int addNode(int parentId, const QString& name, TaxonRank rank,
+                QString* error = nullptr);
     bool removeNode(int id, QString* error = nullptr);   // 级联删除子树
     bool renameNode(int id, const QString& newName, QString* error = nullptr);
+    // 深拷贝 srcId 子树到 dstParentId 下，副本根节点名称为 newRootName；
+    // 子树内拉丁学名自动加后缀避免与原件冲突。返回新根节点 id，失败返回 0。
+    int cloneSubtree(int srcId, int dstParentId, const QString& newRootName,
+                     QString* error = nullptr);
+    // 从一个 JSON 节点恢复整棵子树到 parentId 下（用于撤销删除）。
+    // 会重新分配 id，拉丁学名冲突时自动加后缀。返回新根节点 id，失败返回 0。
+    int restoreSubtreeFromJson(const QJsonObject& nodeObj, int parentId,
+                               QString* error = nullptr);
 
     // ---- 资料编辑 ----
     // 校验等级、拉丁学名非空与全库唯一；全部通过才落盘到节点。
@@ -71,6 +83,8 @@ public:
 
     // ---- JSON 持久化 ----
     QJsonObject toJson() const;
+    // 返回某节点及其子树的 JSON 表示（用于撤销删除等场景）。
+    QJsonObject subtreeToJson(int id) const;
     bool loadFromJson(const QJsonObject& root, QString* error = nullptr);
     bool saveToFile(const QString& fileName, QString* error = nullptr) const;
     bool loadFromFile(const QString& fileName, QString* error = nullptr);
@@ -84,7 +98,7 @@ private:
     void removeLatinForNode(int nodeId);
     void collectSubtreeIds(int id, QVector<int>& ids) const;
     int parseNodeJson(const QJsonObject& obj, int parentId, int& nextId,
-                      QSet<int>& seenIds, QString& error);
+                      QSet<int>& seenIds, int depth, QString& error);
     QJsonObject nodeToJson(const TaxonNode& node) const;
     bool validateLoadedHierarchy(QString& error) const;
 

@@ -12,6 +12,9 @@ const QString kTaxonomyKey = QStringLiteral("taxonomy");
 const QString kNextIdKey = QStringLiteral("next_id");
 const QString kRootsKey = QStringLiteral("roots");
 const QString kChildrenKey = QStringLiteral("children");
+const QString kInfoKey = QStringLiteral("info");
+const QString kNativeRegionsKey = QStringLiteral("native_regions");
+const QString kHabitatKey = QStringLiteral("habitat");
 
 void ensureNodeChildren(QJsonObject& node)
 {
@@ -54,6 +57,30 @@ void normalizeTaxonomy(QJsonObject& db)
     db.insert(kTaxonomyKey, taxonomy);
 }
 
+// v4 新增字段：为所有节点的 info 补上 native_regions / habitat 默认值，
+// 使迁移结果与“直接按 v4 格式保存”一致。旧文件缺这些字段时等价于“未填写”。
+void ensureV4InfoFields(QJsonObject& node)
+{
+    if (node.contains(kInfoKey)) {
+        QJsonObject info = node.value(kInfoKey).toObject();
+        if (!info.contains(kNativeRegionsKey))
+            info.insert(kNativeRegionsKey, QJsonArray());
+        if (!info.contains(kHabitatKey))
+            info.insert(kHabitatKey, QString());
+        node.insert(kInfoKey, info);
+    }
+
+    const QJsonArray children = node.value(kChildrenKey).toArray();
+    QJsonArray updated;
+    for (const auto& value : children) {
+        QJsonObject child = value.toObject();
+        if (!child.isEmpty())
+            ensureV4InfoFields(child);
+        updated.append(child);
+    }
+    node.insert(kChildrenKey, updated);
+}
+
 } // namespace
 
 namespace DbVersion {
@@ -86,8 +113,38 @@ QJsonObject migrateV2ToV3(const QJsonObject& db)
     return upgraded;
 }
 
+QJsonObject migrateV3ToV4(const QJsonObject& db)
+{
+    QJsonObject upgraded = db;
+    upgraded.remove(kVersionKey);
+    upgraded.insert(kSchemaVersionKey, 4);
+
+    // 为所有节点的 info 补上 v4 新增的 native_regions / habitat 默认值。
+    QJsonObject taxonomy = upgraded.value(kTaxonomyKey).toObject();
+    const QJsonArray oldRoots = taxonomy.value(kRootsKey).toArray();
+    QJsonArray roots;
+    for (const auto& value : oldRoots) {
+        QJsonObject node = value.toObject();
+        if (!node.isEmpty())
+            ensureV4InfoFields(node);
+        roots.append(node);
+    }
+    taxonomy.insert(kRootsKey, roots);
+    upgraded.insert(kTaxonomyKey, taxonomy);
+    return upgraded;
+}
+
 bool migrateToLatest(QJsonObject& db, QString* error)
 {
+    // 先确认是 PlantMap 数据文件再动手迁移，避免无意义地改写外来 JSON。
+    const QString appName = db.value(kAppKey).toString();
+    if (appName != QLatin1String("PlantMap")) {
+        if (error) {
+            *error = QStringLiteral("不是 PlantMap 格式的数据文件（app 不匹配）。");
+        }
+        return false;
+    }
+
     const int startVersion = schemaVersionOf(db);
     if (startVersion <= 0) {
         if (error) {
@@ -113,6 +170,8 @@ bool migrateToLatest(QJsonObject& db, QString* error)
             upgraded = migrateV1ToV2(db);
         } else if (version == 2) {
             upgraded = migrateV2ToV3(db);
+        } else if (version == 3) {
+            upgraded = migrateV3ToV4(db);
         } else {
             if (error) {
                 *error = QStringLiteral(
@@ -133,14 +192,6 @@ bool migrateToLatest(QJsonObject& db, QString* error)
         }
         db = upgraded;
         version = nextVersion;
-    }
-
-    const QString appName = db.value(kAppKey).toString();
-    if (appName != QLatin1String("PlantMap")) {
-        if (error) {
-            *error = QStringLiteral("不是 PlantMap 格式的数据文件（app 不匹配）。");
-        }
-        return false;
     }
     return true;
 }
