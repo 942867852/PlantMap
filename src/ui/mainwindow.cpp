@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 
+#include "dbversion.h"
 #include "speciesform.h"
 #include "wheelignorefilter.h"
 
@@ -7,18 +8,21 @@
 #include <QAction>
 #include <QCloseEvent>
 #include <QComboBox>
+#include <QDateTime>
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QDesktopServices>
 #include <QFile>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QIcon>
 #include <QInputDialog>
+#include <QJsonDocument>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
@@ -40,6 +44,32 @@
 namespace {
 
 constexpr int NodeIdRole = Qt::UserRole;
+
+bool copyPhotoFiles(const QDir& source, const QDir& destination,
+                    QString* error)
+{
+    if (!destination.exists() && !QDir().mkpath(destination.absolutePath())) {
+        if (error) {
+            *error = QStringLiteral("无法创建照片目录：%1")
+                         .arg(destination.absolutePath());
+        }
+        return false;
+    }
+
+    const QFileInfoList files = source.entryInfoList(
+        QDir::Files | QDir::NoDotAndDotDot);
+    for (const QFileInfo& fileInfo : files) {
+        if (!QFile::copy(fileInfo.absoluteFilePath(),
+                         destination.filePath(fileInfo.fileName()))) {
+            if (error) {
+                *error = QStringLiteral("复制照片失败：%1")
+                             .arg(fileInfo.fileName());
+            }
+            return false;
+        }
+    }
+    return true;
+}
 
 // 资料编辑窗口：点右上角 X 或“取消”时，若有未保存改动则先询问。
 class SpeciesEditDialog : public QDialog
@@ -210,50 +240,10 @@ MainWindow::MainWindow(const QString& dataDir, QWidget* parent)
 
     buildUi();
     rebuildTree();
-    if (!m_document->roots().isEmpty()) {
-        std::function<QTreeWidgetItem*(QTreeWidgetItem*, bool)> findFirstPlantItem =
-            [&](QTreeWidgetItem* item, bool withPhoto) -> QTreeWidgetItem* {
-            const int id = item->data(0, NodeIdRole).toInt();
-            const TaxonNode* n = m_document->node(id);
-            if (n && n->hasInfo
-                && (!withPhoto || !n->info.photos.isEmpty()))
-                return item;
-            for (int i = 0; i < item->childCount(); ++i) {
-                if (QTreeWidgetItem* found =
-                        findFirstPlantItem(item->child(i), withPhoto))
-                    return found;
-            }
-            return nullptr;
-        };
-
-        QTreeWidgetItem* firstPlantItem = nullptr;
-        for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
-            firstPlantItem = findFirstPlantItem(m_tree->topLevelItem(i), true);
-            if (firstPlantItem)
-                break;
-        }
-        if (!firstPlantItem) {
-            for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
-                firstPlantItem =
-                    findFirstPlantItem(m_tree->topLevelItem(i), false);
-                if (firstPlantItem)
-                    break;
-            }
-        }
-        m_tree->setCurrentItem(firstPlantItem ? firstPlantItem
-                                              : m_tree->topLevelItem(0), 0);
-        // 展开当前选中的植物节点，让下面的“亚种”名称直接可见。
-        if (QTreeWidgetItem* current = m_tree->currentItem()) {
-            QTreeWidgetItem* parent = current->parent();
-            while (parent) {
-                parent->setExpanded(true);
-                parent = parent->parent();
-            }
-            current->setExpanded(true);
-        }
-    }
+    selectFirstPlantItem();
     refreshActionState();
-    setWindowTitle(QStringLiteral("植物图谱 PlantMap"));
+    setWindowTitle(QStringLiteral("植物图谱 PlantMap v%1")
+                       .arg(QStringLiteral(PLANTMAP_VERSION)));
     setStatus(QStringLiteral("数据文件：%1").arg(m_dataFile));
 }
 
@@ -275,6 +265,7 @@ void MainWindow::buildUi()
     m_saveAction = toolbar->addAction(QStringLiteral("保存数据"));
     toolbar->addSeparator();
     auto* advancedAction = toolbar->addAction(QStringLiteral("高级检索…"));
+    auto* importAction = toolbar->addAction(QStringLiteral("导入数据库…"));
 
     connect(m_addAction, &QAction::triggered, this, &MainWindow::addUnderSelected);
     connect(m_editAction, &QAction::triggered, this, &MainWindow::openSpeciesEditor);
@@ -282,9 +273,11 @@ void MainWindow::buildUi()
     connect(m_deleteAction, &QAction::triggered, this, &MainWindow::removeSelected);
     connect(m_saveAction, &QAction::triggered, this, &MainWindow::saveData);
     connect(advancedAction, &QAction::triggered, this, &MainWindow::openAdvancedSearch);
+    connect(importAction, &QAction::triggered, this, &MainWindow::importDatabase);
 
     auto* menu = menuBar()->addMenu(QStringLiteral("数据"));
     menu->addAction(QStringLiteral("保存数据"), this, &MainWindow::saveData);
+    menu->addAction(QStringLiteral("导入数据库…"), this, &MainWindow::importDatabase);
     menu->addAction(QStringLiteral("打开数据目录"), this, &MainWindow::openDataDir);
     menu->addSeparator();
     menu->addAction(QStringLiteral("退出"), this, &MainWindow::close);
@@ -576,6 +569,250 @@ void MainWindow::goToPlantFromSearch(QListWidgetItem* item)
     rebuildTree(id);
     m_view->showNode(id);
     refreshActionState();
+}
+
+bool MainWindow::selectFirstPlantItem()
+{
+    if (m_document->roots().isEmpty())
+        return false;
+
+    std::function<QTreeWidgetItem*(QTreeWidgetItem*, bool)> findFirstPlantItem =
+        [&](QTreeWidgetItem* item, bool withPhoto) -> QTreeWidgetItem* {
+        const int id = item->data(0, NodeIdRole).toInt();
+        const TaxonNode* n = m_document->node(id);
+        if (n && n->hasInfo
+            && (!withPhoto || !n->info.photos.isEmpty()))
+            return item;
+        for (int i = 0; i < item->childCount(); ++i) {
+            if (QTreeWidgetItem* found =
+                    findFirstPlantItem(item->child(i), withPhoto))
+                return found;
+        }
+        return nullptr;
+    };
+
+    QTreeWidgetItem* firstPlantItem = nullptr;
+    for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
+        firstPlantItem = findFirstPlantItem(m_tree->topLevelItem(i), true);
+        if (firstPlantItem)
+            break;
+    }
+    if (!firstPlantItem) {
+        for (int i = 0; i < m_tree->topLevelItemCount(); ++i) {
+            firstPlantItem =
+                findFirstPlantItem(m_tree->topLevelItem(i), false);
+            if (firstPlantItem)
+                break;
+        }
+    }
+
+    QTreeWidgetItem* target = firstPlantItem
+        ? firstPlantItem
+        : (m_tree->topLevelItemCount() > 0
+               ? m_tree->topLevelItem(0)
+               : nullptr);
+    if (!target)
+        return false;
+
+    m_tree->setCurrentItem(target, 0);
+    QTreeWidgetItem* parent = target->parent();
+    while (parent) {
+        parent->setExpanded(true);
+        parent = parent->parent();
+    }
+    target->setExpanded(true);
+    return true;
+}
+
+void MainWindow::importDatabase()
+{
+    const QString selectedFile = QFileDialog::getOpenFileName(
+        this, QStringLiteral("选择要导入的数据库文件"),
+        QString(), QStringLiteral("PlantMap 数据库 (plantmap.json);;"
+                                  "JSON 文件 (*.json)"));
+    if (selectedFile.isEmpty())
+        return;
+
+    QFile source(selectedFile);
+    if (!source.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, QStringLiteral("导入失败"),
+                             QStringLiteral("无法读取所选文件：%1")
+                                 .arg(source.errorString()));
+        return;
+    }
+    const QJsonDocument importedDoc =
+        QJsonDocument::fromJson(source.readAll());
+    source.close();
+    if (!importedDoc.isObject()) {
+        QMessageBox::warning(this, QStringLiteral("导入失败"),
+                             QStringLiteral("所选文件不是有效的 JSON 数据库。"));
+        return;
+    }
+
+    QJsonObject imported = importedDoc.object();
+    const int importedVersion = DbVersion::schemaVersionOf(imported);
+    if (importedVersion <= 0) {
+        QMessageBox::warning(this, QStringLiteral("导入失败"),
+                             QStringLiteral("无法识别所选数据库的格式版本。"));
+        return;
+    }
+    if (importedVersion > DbVersion::kCurrentSchemaVersion) {
+        QMessageBox::warning(
+            this, QStringLiteral("禁止导入"),
+            QStringLiteral("所选数据库版本为 %1，高于当前软件支持的版本 %2，"
+                           "无法导入。")
+                .arg(importedVersion)
+                .arg(DbVersion::kCurrentSchemaVersion));
+        return;
+    }
+
+    QString error;
+    if (importedVersion < DbVersion::kCurrentSchemaVersion
+        && !DbVersion::migrateToLatest(imported, &error)) {
+        QMessageBox::warning(this, QStringLiteral("无法升级数据库"), error);
+        return;
+    }
+
+    // 先用临时文档完整校验一次，确认无误后才触碰当前数据。
+    TaxonomyDocument probe;
+    if (!probe.loadFromJson(imported, &error)) {
+        QMessageBox::warning(this, QStringLiteral("导入失败"),
+                             QStringLiteral("数据库内容校验失败：\n%1")
+                                 .arg(error));
+        return;
+    }
+
+    const QMessageBox::StandardButton answer = QMessageBox::question(
+        this, QStringLiteral("确认导入"),
+        QStringLiteral("导入将用所选数据库替换当前数据库。\n"
+                       "导入前会先备份当前数据库，失败时会自动还原。\n\n"
+                       "是否继续？"));
+    if (answer != QMessageBox::Yes)
+        return;
+
+    // 保证磁盘上的当前数据与内存一致，备份才有意义。
+    if (!m_document->isEmpty())
+        saveData();
+
+    const QString backupDir = QDir(m_dataDir).filePath(
+        QStringLiteral("backups/import_")
+        + QDateTime::currentDateTime().toString(
+            QStringLiteral("yyyyMMdd_hhmmss_zzz")));
+    if (!QDir().mkpath(backupDir)) {
+        QMessageBox::warning(this, QStringLiteral("导入失败"),
+                             QStringLiteral("无法创建备份目录：%1")
+                                 .arg(backupDir));
+        return;
+    }
+    const QString backupDb = QDir(backupDir).filePath(
+        QStringLiteral("plantmap.json"));
+    const QString backupPhotosDir = QDir(backupDir).filePath(
+        QStringLiteral("photos"));
+
+    const bool hadOldDb = QFile::exists(m_dataFile);
+    if (hadOldDb && !QFile::copy(m_dataFile, backupDb)) {
+        QMessageBox::warning(this, QStringLiteral("导入失败"),
+                             QStringLiteral("备份当前数据库文件失败。"));
+        return;
+    }
+
+    const QString currentPhotosPath =
+        QDir(m_dataDir).filePath(QStringLiteral("photos"));
+    QDir oldPhotosDir(currentPhotosPath);
+    if (oldPhotosDir.exists()) {
+        if (!QDir().mkpath(backupPhotosDir)) {
+            QMessageBox::warning(this, QStringLiteral("导入失败"),
+                                 QStringLiteral("无法创建照片备份目录。"));
+            return;
+        }
+        if (!copyPhotoFiles(oldPhotosDir, QDir(backupPhotosDir), &error)) {
+            QMessageBox::warning(this, QStringLiteral("导入失败"),
+                                 QStringLiteral("备份当前照片失败：%1")
+                                     .arg(error));
+            return;
+        }
+    }
+
+    const QDir sourcePhotosDir(
+        QFileInfo(selectedFile).absoluteDir().filePath(
+            QStringLiteral("photos")));
+    const bool samePhotosDir =
+        QDir::cleanPath(sourcePhotosDir.absolutePath())
+        == QDir::cleanPath(currentPhotosPath);
+
+    bool ok = true;
+    if (!samePhotosDir) {
+        if (oldPhotosDir.exists() && !oldPhotosDir.removeRecursively())
+            ok = false;
+        if (ok && !QDir().mkpath(currentPhotosPath))
+            ok = false;
+        if (ok && sourcePhotosDir.exists()
+            && !copyPhotoFiles(sourcePhotosDir,
+                               QDir(currentPhotosPath), &error))
+            ok = false;
+    }
+
+    if (ok && !m_document->loadFromJson(imported, &error))
+        ok = false;
+    if (ok && !m_document->saveToFile(m_dataFile, &error))
+        ok = false;
+
+    if (!ok) {
+        QString restoreError;
+        // 还原数据库与照片。
+        if (oldPhotosDir.exists())
+            oldPhotosDir.removeRecursively();
+        QDir().mkpath(currentPhotosPath);
+        if (QDir(backupPhotosDir).exists()
+            && !copyPhotoFiles(QDir(backupPhotosDir),
+                               QDir(currentPhotosPath), &restoreError)) {
+            restoreError = QStringLiteral("还原照片失败：%1")
+                               .arg(restoreError);
+        }
+        if (hadOldDb) {
+            if (QFile::exists(m_dataFile))
+                QFile::remove(m_dataFile);
+            if (restoreError.isEmpty()
+                && !QFile::copy(backupDb, m_dataFile)) {
+                restoreError = QStringLiteral("还原数据库文件失败。");
+            }
+        }
+        if (restoreError.isEmpty()) {
+            if (hadOldDb) {
+                if (!m_document->loadFromFile(m_dataFile, &restoreError))
+                    restoreError = QStringLiteral("重新载入还原后的数据库失败：%1")
+                                       .arg(restoreError);
+            } else {
+                m_document->clear();
+            }
+        }
+
+        rebuildTree();
+        selectFirstPlantItem();
+        refreshActionState();
+
+        if (!restoreError.isEmpty()) {
+            QMessageBox::critical(
+                this, QStringLiteral("导入失败且无法完全还原"),
+                QStringLiteral("导入失败：%1\n\n还原过程也出现问题：%2\n"
+                               "备份位于：%3")
+                    .arg(error, restoreError, backupDir));
+        } else {
+            QMessageBox::warning(
+                this, QStringLiteral("导入失败"),
+                QStringLiteral("导入失败，已恢复导入前的数据库。\n"
+                               "原因：%1\n\n备份目录：%2")
+                    .arg(error, backupDir));
+        }
+        return;
+    }
+
+    m_searchEdit->clear();
+    rebuildTree();
+    selectFirstPlantItem();
+    refreshActionState();
+    setStatus(QStringLiteral("数据库导入成功，原数据库已备份到 %1")
+                  .arg(backupDir));
 }
 
 void MainWindow::openAdvancedSearch()

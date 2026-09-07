@@ -40,6 +40,9 @@ target_include_directories(PlantMap PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
 )
 target_link_libraries(PlantMap PRIVATE plantcore Qt6::Widgets)
+target_compile_definitions(PlantMap PRIVATE
+    PLANTMAP_VERSION="${PROJECT_VERSION}"
+)
 set_target_properties(PlantMap PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE

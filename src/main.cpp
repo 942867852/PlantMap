@@ -22,6 +22,7 @@ int main(int argc, char* argv[])
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("PlantMap"));
+    QApplication::setApplicationVersion(QStringLiteral(PLANTMAP_VERSION));
     QApplication::setOrganizationName(QStringLiteral("PlantMap"));
 
     QCommandLineParser parser;

@@ -30,6 +30,7 @@ private slots:
     void onSearchTextChanged(const QString& text);
     void openSpeciesEditor();
     void openAdvancedSearch();
+    void importDatabase();
     void addUnderSelected();
     void renameSelected();
     void removeSelected();
@@ -43,6 +44,7 @@ private:
     int selectedNodeId() const;
     int subtreeSize(int id) const;
     void goToPlantFromSearch(QListWidgetItem* item);
+    bool selectFirstPlantItem();
     void showError(const QString& title, const QString& message);
     void setStatus(const QString& message);
 
