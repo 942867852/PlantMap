@@ -9,8 +9,10 @@
 #include <QDebug>
 #include <QDesktopServices>
 #include <QDialogButtonBox>
+#include <QDir>
 #include <QDoubleSpinBox>
 #include <QEvent>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
@@ -36,6 +38,7 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <algorithm>
 #include <functional>
 
 namespace {
@@ -98,6 +101,11 @@ void SpeciesForm::setDocument(TaxonomyDocument* document)
 void SpeciesForm::setDataDir(const QString& path)
 {
     m_dataDir = path;
+}
+
+QStringList SpeciesForm::sessionCopiedPhotoFiles() const
+{
+    return m_copiedPhotosThisSession;
 }
 
 void SpeciesForm::showNode(int id)
@@ -671,6 +679,21 @@ bool SpeciesForm::requestSave()
         return false;
     }
 
+    // 保存成功后再清理“本次会话添加但最终没有被引用”的照片文件，
+    // 例如用户添加照片后又从资料里移除。
+    QStringList stillReferenced;
+    const QDir photosDir(QDir(m_dataDir).filePath(QStringLiteral("photos")));
+    for (const QString& fileName : m_copiedPhotosThisSession) {
+        if (collected.photos.contains(fileName)) {
+            stillReferenced.append(fileName);
+            continue;
+        }
+        const QString copied = photosDir.filePath(fileName);
+        if (QFile::exists(copied) && !QFile::remove(copied))
+            qWarning() << "移除未引用的会话照片失败:" << copied;
+    }
+    m_copiedPhotosThisSession = stillReferenced;
+
     const SpeciesInfo* saved = m_document->infoOf(m_nodeId);
     if (saved)
         populateFromInfo(*saved);
@@ -729,7 +752,7 @@ bool SpeciesForm::hasUnsavedChanges() const
 
 QString SpeciesForm::resolvePhotoPath(const QString& relativeName) const
 {
-    if (relativeName.isEmpty())
+    if (!isSafePhotoFileName(relativeName))
         return QString();
     return QDir(m_dataDir).filePath(QStringLiteral("photos") + QLatin1Char('/') + relativeName);
 }
@@ -870,6 +893,10 @@ void SpeciesForm::addPhotos()
         }
         QMessageBox::warning(this, QStringLiteral("无法保存照片信息"), error);
         return;
+    }
+    for (const QString& fileName : added) {
+        if (!m_copiedPhotosThisSession.contains(fileName))
+            m_copiedPhotosThisSession.append(fileName);
     }
     refreshPhotoList(info);
     emit infoSaved();

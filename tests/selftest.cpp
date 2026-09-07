@@ -6,6 +6,7 @@
 #include <QTemporaryFile>
 
 #include "dbversion.h"
+#include "displayformat.h"
 #include "taxondocument.h"
 
 namespace {
@@ -189,6 +190,77 @@ int main(int argc, char* argv[])
           QStringLiteral("旧版文件经迁移后可加载：%1").arg(error));
     check(legacyDoc.nodeCount() == 1,
           QStringLiteral("迁移加载后节点数正确"));
+
+    // 17. 月份区间显示（防止回归）
+    check(DisplayFormat::joinMonths(QVector<int>{}) == QStringLiteral("未填写"),
+          QStringLiteral("空月份显示“未填写”"));
+    check(DisplayFormat::joinMonths(QVector<int>{3}) == QStringLiteral("3月"),
+          QStringLiteral("单月显示“3月”"));
+    check(DisplayFormat::joinMonths(QVector<int>{2, 3, 4})
+              == QStringLiteral("2月-4月"),
+          QStringLiteral("连续月份显示“2月-4月”"));
+    check(DisplayFormat::joinMonths(QVector<int>{12, 1, 2})
+              == QStringLiteral("12月-次年2月"),
+          QStringLiteral("跨年月份显示“12月-次年2月”"));
+    QVector<int> allMonths;
+    for (int month = 1; month <= 12; ++month)
+        allMonths.append(month);
+    check(DisplayFormat::joinMonths(allMonths) == QStringLiteral("全年"),
+          QStringLiteral("全选月份显示“全年”"));
+    check(DisplayFormat::joinMonths(QVector<int>{2, 4})
+              == QStringLiteral("2月、4月"),
+          QStringLiteral("不连续月份逐个显示"));
+
+    // 18. 数值范围单边显示（防止回归）
+    check(DisplayFormat::rangeText(-100, -100, QStringLiteral(" ℃"), -100)
+              == QStringLiteral("未填写"),
+          QStringLiteral("两端未填时不显示温度"));
+    check(DisplayFormat::rangeText(-100, 30, QStringLiteral(" ℃"), -100)
+              == QStringLiteral("最高 30 ℃"),
+          QStringLiteral("只填高端显示“最高 30 ℃”"));
+    check(DisplayFormat::rangeText(15, -100, QStringLiteral(" ℃"), -100)
+              == QStringLiteral("最低 15 ℃"),
+          QStringLiteral("只填低端显示“最低 15 ℃”"));
+    check(DisplayFormat::rangeText(15, 30, QStringLiteral(" ℃"), -100)
+              == QStringLiteral("15 ℃ ~ 30 ℃"),
+          QStringLiteral("两端都有显示完整范围"));
+
+    // 19. 数值一位小数（防止 pH 长浮点数回归）
+    check(qAbs(DisplayFormat::roundOneDecimal(5.300000000001) - 5.3)
+              < 0.000001,
+          QStringLiteral("pH 舍入到 1 位小数"));
+    check(DisplayFormat::formatOneDecimal(7.1000001)
+              == QStringLiteral("7.1"),
+          QStringLiteral("pH 文本固定 1 位小数"));
+
+    // 20. 照片文件名安全校验
+    check(isSafePhotoFileName(QStringLiteral("node1_photo.jpg")),
+          QStringLiteral("普通照片文件名合法"));
+    check(!isSafePhotoFileName(QStringLiteral("../photo.jpg")),
+          QStringLiteral("拒绝含 .. 的照片文件名"));
+    check(!isSafePhotoFileName(QStringLiteral("dir/photo.jpg")),
+          QStringLiteral("拒绝含路径分隔符的照片文件名"));
+    check(!isSafePhotoFileName(QStringLiteral("C:/photo.jpg")),
+          QStringLiteral("拒绝绝对路径的照片文件名"));
+
+    // 21. 载入时校验层级，拒绝顶层非“界”的文件
+    QJsonObject invalidRoot;
+    invalidRoot[QStringLiteral("app")] = QStringLiteral("PlantMap");
+    invalidRoot[QStringLiteral("schema_version")] = 3;
+    QJsonObject invalidTaxonomy;
+    invalidTaxonomy[QStringLiteral("next_id")] = 2;
+    QJsonObject invalidNode;
+    invalidNode[QStringLiteral("id")] = 1;
+    invalidNode[QStringLiteral("rank")] = QStringLiteral("species");
+    invalidNode[QStringLiteral("name")] = QStringLiteral("非法顶级");
+    invalidNode[QStringLiteral("children")] = QJsonArray();
+    invalidTaxonomy[QStringLiteral("roots")] =
+        QJsonArray { invalidNode };
+    invalidRoot[QStringLiteral("taxonomy")] = invalidTaxonomy;
+    TaxonomyDocument invalidDoc;
+    QString invalidError;
+    check(!invalidDoc.loadFromJson(invalidRoot, &invalidError),
+          QStringLiteral("层级校验拒绝顶层非“界”的分类文件"));
 
     qInfo() << (failures == 0 ? QStringLiteral("全部自检通过")
                               : QStringLiteral("存在 %1 项失败").arg(failures));

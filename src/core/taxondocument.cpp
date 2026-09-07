@@ -10,6 +10,8 @@
 #include <QSaveFile>
 #include <QSet>
 
+#include <functional>
+
 namespace {
 
 QString trimCollapse(const QString& input)
@@ -428,6 +430,86 @@ int TaxonomyDocument::parseNodeJson(const QJsonObject& obj, int parentId,
     return newNode->id;
 }
 
+bool TaxonomyDocument::validateLoadedHierarchy(QString& error) const
+{
+    QSet<QString> rootNames;
+    for (int id : m_rootIds) {
+        const TaxonNode* n = node(id);
+        if (!n || n->rank != TaxonRank::Kingdom) {
+            error = QStringLiteral("数据文件中顶级分类不是“界”（等级：%1）。")
+                        .arg(n ? TaxonRanks::displayName(n->rank)
+                               : QStringLiteral("缺失"));
+            return false;
+        }
+        if (rootNames.contains(n->name)) {
+            error = QStringLiteral("数据文件中存在重复的顶级分类“%1”。")
+                        .arg(n->name);
+            return false;
+        }
+        rootNames.insert(n->name);
+    }
+
+    std::function<bool(int)> validateNode = [&](int id) -> bool {
+        const TaxonNode* n = node(id);
+        if (!n) {
+            error = QStringLiteral("数据文件中存在悬空节点引用（id=%1）。").arg(id);
+            return false;
+        }
+
+        if (n->parentId != 0) {
+            const TaxonNode* parentNode = node(n->parentId);
+            const TaxonRank expected =
+                parentNode ? TaxonRanks::nextLower(parentNode->rank)
+                           : TaxonRank::Invalid;
+            if (n->rank != expected) {
+                error = QStringLiteral(
+                            "数据文件层级错误：“%1（%2）”的下一级应为%3，"
+                            "实际保存的是%4。")
+                            .arg(parentNode ? parentNode->name : QString(),
+                                 parentNode ? TaxonRanks::displayName(parentNode->rank)
+                                            : QStringLiteral("?"),
+                                 TaxonRanks::displayName(expected),
+                                 TaxonRanks::displayName(n->rank));
+                return false;
+            }
+        }
+
+        if (n->hasInfo && !TaxonRanks::canHostPlantInfo(n->rank)) {
+            error = QStringLiteral("数据文件中“%1（%2）”不允许挂载物种资料。")
+                        .arg(n->name, TaxonRanks::displayName(n->rank));
+            return false;
+        }
+
+        QSet<QString> childNames;
+        for (int childId : n->childIds) {
+            const TaxonNode* child = node(childId);
+            if (!child) {
+                error = QStringLiteral("数据文件中节点“%1”存在悬空子节点（id=%2）。")
+                            .arg(n->name).arg(childId);
+                return false;
+            }
+            if (childNames.contains(child->name)) {
+                error = QStringLiteral("数据文件中“%1”下存在同名分类“%2”。")
+                            .arg(n->name, child->name);
+                return false;
+            }
+            childNames.insert(child->name);
+        }
+
+        for (int childId : n->childIds) {
+            if (!validateNode(childId))
+                return false;
+        }
+        return true;
+    };
+
+    for (int id : m_rootIds) {
+        if (!validateNode(id))
+            return false;
+    }
+    return true;
+}
+
 bool TaxonomyDocument::loadFromJson(const QJsonObject& root, QString* error)
 {
     const QString appName = root.value(QStringLiteral("app")).toString();
@@ -464,6 +546,13 @@ bool TaxonomyDocument::loadFromJson(const QJsonObject& root, QString* error)
             clear();
             return false;
         }
+    }
+
+    QString hierarchyError;
+    if (!validateLoadedHierarchy(hierarchyError)) {
+        if (error) *error = hierarchyError;
+        clear();
+        return false;
     }
 
     // 重建拉丁学名索引；发现重复时加载失败，提示用户手工清理数据文件。

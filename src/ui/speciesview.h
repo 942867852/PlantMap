@@ -30,6 +30,8 @@ public:
 
     // id <= 0 时显示提示；非种/亚种显示说明；种/亚种显示只读资料。
     void showNode(int id);
+    // 搜索等场景下禁用“编辑资料…”按钮。
+    void setEditEnabled(bool enabled);
 
 signals:
     void editRequested(int nodeId);

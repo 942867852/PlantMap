@@ -86,6 +86,7 @@ private:
     int parseNodeJson(const QJsonObject& obj, int parentId, int& nextId,
                       QSet<int>& seenIds, QString& error);
     QJsonObject nodeToJson(const TaxonNode& node) const;
+    bool validateLoadedHierarchy(QString& error) const;
 
     QHash<int, QSharedPointer<TaxonNode>> m_nodes;
     QVector<int> m_rootIds;

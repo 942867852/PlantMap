@@ -40,6 +40,8 @@ public:
     // id <= 0 时清空；非种/亚种节点显示提示页
     void showNode(int id);
     int currentNodeId() const { return m_nodeId; }
+    // 本次编辑会话中新复制到 photos/ 的文件（用于取消/保存时清理孤儿文件）。
+    QStringList sessionCopiedPhotoFiles() const;
 
 signals:
     void infoSaved();
@@ -73,6 +75,7 @@ private:
 
     TaxonomyDocument* m_document = nullptr;
     QString m_dataDir;
+    QStringList m_copiedPhotosThisSession;
     int m_nodeId = 0;
     bool m_loading = false;
 

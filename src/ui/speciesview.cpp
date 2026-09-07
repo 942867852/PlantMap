@@ -1,4 +1,5 @@
 #include "speciesview.h"
+#include "displayformat.h"
 
 #include <QDir>
 #include <QFileInfo>
@@ -23,54 +24,6 @@
 
 namespace {
 
-QString joinMonths(const QVector<int>& months)
-{
-    bool present[13] = {};
-    for (int month : months) {
-        if (month >= 1 && month <= 12)
-            present[month] = true;
-    }
-
-    bool allMonths = true;
-    for (int month = 1; month <= 12; ++month) {
-        if (!present[month]) {
-            allMonths = false;
-            break;
-        }
-    }
-    if (allMonths)
-        return QStringLiteral("全年");
-
-    QStringList parts;
-    for (int start = 1; start <= 12; ++start) {
-        if (!present[start])
-            continue;
-        const bool previousPresent =
-            start == 1 ? present[12] : present[start - 1];
-        if (previousPresent)
-            continue;
-
-        int end = start;
-        while (present[(end % 12) + 1])
-            ++end;
-
-        if (end == start) {
-            parts.append(QStringLiteral("%1月").arg(start));
-        } else if (end > 12) {
-            const int endMonth = (end % 12) == 0 ? 12 : (end % 12);
-            parts.append(QStringLiteral("%1月-次年%2月")
-                             .arg(start).arg(endMonth));
-        } else {
-            parts.append(QStringLiteral("%1月-%2月")
-                             .arg(start).arg(end));
-        }
-        start = end;
-    }
-
-    return parts.isEmpty() ? QStringLiteral("未填写")
-                           : parts.join(QStringLiteral("、"));
-}
-
 QString joinChecked(const QSet<QString>& keys,
                     const QStringList& order,
                     const std::function<QString(const QString&)>& labelFor)
@@ -82,17 +35,6 @@ QString joinChecked(const QSet<QString>& keys,
     }
     return labels.isEmpty() ? QStringLiteral("未填写")
                             : labels.join(QStringLiteral("、"));
-}
-
-QString rangeText(int low, int high, const QString& suffix, int unknown = 0)
-{
-    if (low == unknown && high == unknown)
-        return QStringLiteral("未填写");
-    if (low == unknown)
-        return QStringLiteral("最高 %1%2").arg(high).arg(suffix);
-    if (high == unknown)
-        return QStringLiteral("最低 %1%2").arg(low).arg(suffix);
-    return QStringLiteral("%1%2 ~ %3%2").arg(low).arg(suffix).arg(high);
 }
 
 } // namespace
@@ -152,6 +94,12 @@ void SpeciesViewForm::showNode(int id)
 
     refreshDetail();
     refreshPhotoList(n->info.photos);
+}
+
+void SpeciesViewForm::setEditEnabled(bool enabled)
+{
+    if (m_editButton)
+        m_editButton->setEnabled(enabled);
 }
 
 QWidget* SpeciesViewForm::buildEmptyPage()
@@ -334,26 +282,26 @@ void SpeciesViewForm::refreshDetail()
     m_lightValue->setText(lightLabel(info.light));
     m_waterValue->setText(waterLabel(info.water));
     m_temperatureValue->setText(
-        rangeText(info.temperatureMinC, info.temperatureMaxC,
-                  QStringLiteral(" ℃"), -100));
+        DisplayFormat::rangeText(info.temperatureMinC, info.temperatureMaxC,
+                                 QStringLiteral(" ℃"), -100));
     m_humidityValue->setText(
-        rangeText(info.humidityMinPct, info.humidityMaxPct,
-                  QStringLiteral(" %")));
+        DisplayFormat::rangeText(info.humidityMinPct, info.humidityMaxPct,
+                                 QStringLiteral(" %")));
     if (info.phMin == 0.0 && info.phMax == 0.0) {
         m_phValue->setText(QStringLiteral("未填写"));
     } else if (info.phMin == 0.0) {
         m_phValue->setText(
             QStringLiteral("最高 %1")
-                .arg(info.phMax, 0, 'f', 1));
+                .arg(DisplayFormat::formatOneDecimal(info.phMax)));
     } else if (info.phMax == 0.0) {
         m_phValue->setText(
             QStringLiteral("最低 %1")
-                .arg(info.phMin, 0, 'f', 1));
+                .arg(DisplayFormat::formatOneDecimal(info.phMin)));
     } else {
         m_phValue->setText(
             QStringLiteral("%1 ~ %2")
-                .arg(info.phMin, 0, 'f', 1)
-                .arg(info.phMax, 0, 'f', 1));
+                .arg(DisplayFormat::formatOneDecimal(info.phMin))
+                .arg(DisplayFormat::formatOneDecimal(info.phMax)));
     }
     m_soilValue->setText(joinChecked(
         info.soilTypes, predefinedSoilTypes(),
@@ -379,11 +327,11 @@ void SpeciesViewForm::refreshDetail()
     m_growthRateValue->setText(growthRateLabel(info.growthRate));
 
     m_heightValue->setText(
-        rangeText(info.heightMinCm, info.heightMaxCm,
-                  QStringLiteral(" cm")));
+        DisplayFormat::rangeText(info.heightMinCm, info.heightMaxCm,
+                                 QStringLiteral(" cm")));
     m_spreadValue->setText(
-        rangeText(info.spreadMinCm, info.spreadMaxCm,
-                  QStringLiteral(" cm")));
+        DisplayFormat::rangeText(info.spreadMinCm, info.spreadMaxCm,
+                                 QStringLiteral(" cm")));
     m_propagationValue->setText(joinChecked(
         info.propagationMethods, predefinedPropagationMethods(),
         [](const QString& key) { return propagationLabel(key); }));
@@ -391,8 +339,8 @@ void SpeciesViewForm::refreshDetail()
         info.usageTags, predefinedUsageTags(),
         [](const QString& key) { return usageTagLabel(key); }));
 
-    m_bloomValue->setText(joinMonths(info.bloomMonths));
-    m_fruitValue->setText(joinMonths(info.fruitMonths));
+    m_bloomValue->setText(DisplayFormat::joinMonths(info.bloomMonths));
+    m_fruitValue->setText(DisplayFormat::joinMonths(info.fruitMonths));
 
     m_customTable->setRowCount(0);
     QStringList customKeys = info.custom.keys();
@@ -408,7 +356,7 @@ void SpeciesViewForm::refreshDetail()
 
 QString SpeciesViewForm::resolvePhotoPath(const QString& relativeName) const
 {
-    if (relativeName.isEmpty())
+    if (!isSafePhotoFileName(relativeName))
         return QString();
     return QDir(m_dataDir).filePath(
         QStringLiteral("photos") + QLatin1Char('/') + relativeName);

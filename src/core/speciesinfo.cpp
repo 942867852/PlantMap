@@ -1,16 +1,12 @@
 #include "speciesinfo.h"
+#include "displayformat.h"
 
 #include <algorithm>
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
-#include <QtGlobal>
 
 namespace {
-
-// 数据库里的 pH 统一只保留 1 位小数，避免出现 5.300000000000001。
-double roundOneDecimal(double value)
-{
-    return qRound(value * 10.0) / 10.0;
-}
 
 QJsonArray monthsToJson(const QVector<int>& months)
 {
@@ -64,6 +60,21 @@ QJsonObject stringsToJson(const QMap<QString, QString>& map)
 }
 
 } // namespace
+
+bool isSafePhotoFileName(const QString& fileName)
+{
+    if (fileName.isEmpty()
+        || fileName == QLatin1String(".")
+        || fileName == QLatin1String(".."))
+        return false;
+    if (fileName.contains(QLatin1Char('/'))
+        || fileName.contains(QLatin1Char('\\'))
+        || fileName.contains(QLatin1Char(':')))
+        return false;
+    if (QDir::isAbsolutePath(fileName))
+        return false;
+    return QFileInfo(fileName).fileName() == fileName;
+}
 
 // ------------------------- 枚举与映射 -------------------------
 
@@ -341,6 +352,29 @@ bool SpeciesInfo::isEmpty() const
         && aliases.isEmpty()
         && description.isEmpty()
         && photos.isEmpty()
+        && light == LightPreference::Unknown
+        && water == WaterPreference::Unknown
+        && temperatureMinC == -100
+        && temperatureMaxC == -100
+        && humidityMinPct == 0
+        && humidityMaxPct == 0
+        && phMin == 0.0
+        && phMax == 0.0
+        && soilTypes.isEmpty()
+        && hardinessZoneLow == 0
+        && hardinessZoneHigh == 0
+        && habit == GrowthHabit::Unknown
+        && lifeCycle == LifeCycle::Unknown
+        && foliage == FoliageType::Unknown
+        && growthRate == GrowthRate::Unknown
+        && heightMinCm == 0
+        && heightMaxCm == 0
+        && spreadMinCm == 0
+        && spreadMaxCm == 0
+        && propagationMethods.isEmpty()
+        && usageTags.isEmpty()
+        && bloomMonths.isEmpty()
+        && fruitMonths.isEmpty()
         && custom.isEmpty();
 }
 
@@ -390,8 +424,8 @@ QJsonObject SpeciesInfo::toJson() const
     obj[QStringLiteral("temperature_max_c")] = temperatureMaxC;
     obj[QStringLiteral("humidity_min_pct")] = humidityMinPct;
     obj[QStringLiteral("humidity_max_pct")] = humidityMaxPct;
-    obj[QStringLiteral("ph_min")] = roundOneDecimal(phMin);
-    obj[QStringLiteral("ph_max")] = roundOneDecimal(phMax);
+    obj[QStringLiteral("ph_min")] = DisplayFormat::roundOneDecimal(phMin);
+    obj[QStringLiteral("ph_max")] = DisplayFormat::roundOneDecimal(phMax);
     obj[QStringLiteral("soil_types")] = keysToJson(soilTypes);
     obj[QStringLiteral("hardiness_zone_low")] = hardinessZoneLow;
     obj[QStringLiteral("hardiness_zone_high")] = hardinessZoneHigh;
@@ -418,14 +452,17 @@ SpeciesInfo SpeciesInfo::fromJson(const QJsonObject& obj)
     SpeciesInfo info;
     info.scientificName = obj.value(QStringLiteral("scientific_name")).toString().trimmed();
     const QJsonArray aliasesArray = obj.value(QStringLiteral("aliases")).toArray();
-    for (const auto& value : aliasesArray)
-        info.aliases.append(value.toString());
+    for (const auto& value : aliasesArray) {
+        const QString alias = value.toString().trimmed();
+        if (!alias.isEmpty() && !info.aliases.contains(alias))
+            info.aliases.append(alias);
+    }
     info.description = obj.value(QStringLiteral("description")).toString();
 
     QJsonArray photosArray = obj.value(QStringLiteral("photos")).toArray();
     for (const auto& value : photosArray) {
         const QString fileName = value.toString();
-        if (!fileName.isEmpty())
+        if (isSafePhotoFileName(fileName))
             info.photos.append(fileName);
     }
 
@@ -435,9 +472,9 @@ SpeciesInfo SpeciesInfo::fromJson(const QJsonObject& obj)
     info.temperatureMaxC = obj.value(QStringLiteral("temperature_max_c")).toInt(info.temperatureMaxC);
     info.humidityMinPct = obj.value(QStringLiteral("humidity_min_pct")).toInt(info.humidityMinPct);
     info.humidityMaxPct = obj.value(QStringLiteral("humidity_max_pct")).toInt(info.humidityMaxPct);
-    info.phMin = roundOneDecimal(
+    info.phMin = DisplayFormat::roundOneDecimal(
         obj.value(QStringLiteral("ph_min")).toDouble(info.phMin));
-    info.phMax = roundOneDecimal(
+    info.phMax = DisplayFormat::roundOneDecimal(
         obj.value(QStringLiteral("ph_max")).toDouble(info.phMax));
     info.soilTypes = keysFromJson(obj.value(QStringLiteral("soil_types")).toArray());
     info.hardinessZoneLow = obj.value(QStringLiteral("hardiness_zone_low")).toInt();

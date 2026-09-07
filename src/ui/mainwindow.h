@@ -1,5 +1,7 @@
 #pragma once
 
+#include <QHash>
+#include <QIcon>
 #include <QMainWindow>
 #include <QCloseEvent>
 
@@ -34,7 +36,7 @@ private slots:
     void addUnderSelected();
     void renameSelected();
     void removeSelected();
-    void saveData();
+    bool saveData();
     void openDataDir();
 
 private:
@@ -60,6 +62,8 @@ private:
     QAction* m_renameAction = nullptr;
     QAction* m_deleteAction = nullptr;
     QAction* m_saveAction = nullptr;
+    QHash<QString, QIcon> m_searchThumbCache;
     QString m_dataDir;
     QString m_dataFile;
+    bool m_loadFailed = false;
 };

@@ -87,6 +87,10 @@ QString growthRateToKey(GrowthRate value);
 GrowthRate growthRateFromKey(const QString& key);
 QString growthRateLabel(GrowthRate value);
 
+// 判断某个字符串能否安全地作为 photos/ 下的“纯文件名”保存。
+// 拒绝路径分隔符、绝对路径、“..”等，防止读取/打开数据目录以外的文件。
+bool isSafePhotoFileName(const QString& fileName);
+
 // 预置选项（返回稳定 key），UI 需要显示时调用对应 label 函数
 QStringList predefinedSoilTypes();
 QString soilTypeLabel(const QString& key);

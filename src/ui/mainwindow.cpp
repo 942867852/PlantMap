@@ -143,6 +143,23 @@ protected:
                 return;
             }
         }
+
+        // 即使当前表单与数据库一致（例如“添加后又移除”了某张照片），
+        // 本会话复制进 photos/ 的文件也不能留下，否则会成为孤儿文件。
+        QStringList failedToRemove;
+        for (const QString& relativeName
+             : m_form->sessionCopiedPhotoFiles()) {
+            const QString fullPath = QDir(m_dataDir).filePath(
+                QStringLiteral("photos") + QLatin1Char('/') + relativeName);
+            if (QFile::exists(fullPath) && !QFile::remove(fullPath))
+                failedToRemove.append(relativeName);
+        }
+        if (!failedToRemove.isEmpty()) {
+            QMessageBox::warning(
+                this, QStringLiteral("部分照片文件未能删除"),
+                QStringLiteral("以下照片文件可能正被占用，无法删除：\n\n%1")
+                    .arg(failedToRemove.join(QLatin1Char('\n'))));
+        }
         QDialog::reject();
     }
 
@@ -164,41 +181,10 @@ private:
 
     bool rollback(QString* error)
     {
-        // 先记录当前资料里的照片，删除“本次会话新增”的图片文件。
-        const TaxonNode* n = m_document->node(m_nodeId);
-        QStringList currentPhotos;
-        if (n && n->hasInfo)
-            currentPhotos = n->info.photos;
-
-        QStringList addedPhotos = currentPhotos;
-        for (const QString& originalPhoto : m_originalInfo.photos)
-            addedPhotos.removeAll(originalPhoto);
-
-        bool ok = false;
         if (m_originalHasInfo) {
-            ok = m_document->setInfo(m_nodeId, m_originalInfo, error);
-        } else {
-            ok = m_document->clearInfo(m_nodeId, error);
+            return m_document->setInfo(m_nodeId, m_originalInfo, error);
         }
-        if (!ok)
-            return false;
-
-        // 文档已还原，再清理本次新增且已无引用的照片文件。
-        QStringList failedToRemove;
-        for (const QString& relativeName : addedPhotos) {
-            const QString fullPath = QDir(m_dataDir).filePath(
-                QStringLiteral("photos") + QLatin1Char('/') + relativeName);
-            if (QFile::exists(fullPath) && !QFile::remove(fullPath))
-                failedToRemove.append(relativeName);
-        }
-        if (!failedToRemove.isEmpty()) {
-            QMessageBox::warning(
-                this, QStringLiteral("部分照片文件未能删除"),
-                QStringLiteral("数据库已还原，但以下照片文件可能正被占用，"
-                               "无法删除：\n\n%1")
-                    .arg(failedToRemove.join(QLatin1Char('\n'))));
-        }
-        return ok;
+        return m_document->clearInfo(m_nodeId, error);
     }
 
     TaxonomyDocument* m_document = nullptr;
@@ -222,12 +208,17 @@ MainWindow::MainWindow(const QString& dataDir, QWidget* parent)
     if (QFile::exists(m_dataFile)) {
         QString error;
         if (!m_document->loadFromFile(m_dataFile, &error)) {
+            m_loadFailed = true;
             QMessageBox::warning(this, QStringLiteral("数据加载失败"),
-                                 error + QStringLiteral("\n\n将创建一份空数据；请勿覆盖原文件。"));
+                                 error
+                                     + QStringLiteral(
+                                           "\n\n将按空库启动。"
+                                           "原文件暂时不会改动；"
+                                           "保存新数据时程序会先保留原文件副本。"));
         }
     }
 
-    if (m_document->isEmpty()) {
+    if (!m_loadFailed && m_document->isEmpty()) {
         QString error;
         const int rootId = m_document->addNode(0, QStringLiteral("植物界"), &error);
         if (rootId > 0) {
@@ -490,6 +481,7 @@ void MainWindow::onSearchTextChanged(const QString& text)
     m_editAction->setEnabled(false);
     m_renameAction->setEnabled(false);
     m_deleteAction->setEnabled(false);
+    m_view->setEditEnabled(false);
 
     m_searchResults->clear();
     const QString normalizedQuery =
@@ -528,15 +520,25 @@ void MainWindow::onSearchTextChanged(const QString& text)
                     item->setData(NodeIdRole, n->id);
                     item->setToolTip(m_document->displayPathOf(n->id));
                     if (!n->info.photos.isEmpty()) {
-                        const QPixmap pixmap(
-                            QDir(m_dataDir)
-                                .filePath(QStringLiteral("photos")
-                                          + QLatin1Char('/')
-                                          + n->info.photos.first()));
-                        if (!pixmap.isNull())
-                            item->setIcon(QIcon(pixmap.scaled(
-                                QSize(36, 36), Qt::KeepAspectRatio,
-                                Qt::SmoothTransformation)));
+                        const QString relativeName = n->info.photos.first();
+                        auto cacheIt = m_searchThumbCache.find(relativeName);
+                        if (cacheIt == m_searchThumbCache.end()) {
+                            const QPixmap pixmap(
+                                QDir(m_dataDir)
+                                    .filePath(QStringLiteral("photos")
+                                              + QLatin1Char('/')
+                                              + relativeName));
+                            QIcon icon;
+                            if (!pixmap.isNull()) {
+                                icon = QIcon(pixmap.scaled(
+                                    QSize(36, 36), Qt::KeepAspectRatio,
+                                    Qt::SmoothTransformation));
+                            }
+                            cacheIt =
+                                m_searchThumbCache.insert(relativeName, icon);
+                        }
+                        if (!cacheIt->isNull())
+                            item->setIcon(*cacheIt);
                     }
                     m_searchResults->addItem(item);
                 }
@@ -786,7 +788,10 @@ void MainWindow::importDatabase()
                 m_document->clear();
             }
         }
+        m_loadFailed = !restoreError.isEmpty() && hadOldDb
+            && m_document->isEmpty();
 
+        m_searchThumbCache.clear();
         rebuildTree();
         selectFirstPlantItem();
         refreshActionState();
@@ -808,6 +813,8 @@ void MainWindow::importDatabase()
     }
 
     m_searchEdit->clear();
+    m_searchThumbCache.clear();
+    m_loadFailed = false;
     rebuildTree();
     selectFirstPlantItem();
     refreshActionState();
@@ -1026,10 +1033,14 @@ void MainWindow::refreshActionState()
 {
     const int id = selectedNodeId();
     const TaxonNode* n = id > 0 ? m_document->node(id) : nullptr;
+    const bool searching =
+        m_searchEdit && !m_searchEdit->text().trimmed().isEmpty();
     m_addAction->setEnabled(!n || TaxonRanks::canHaveChildren(n->rank));
-    m_editAction->setEnabled(n && TaxonRanks::canHostPlantInfo(n->rank));
+    m_editAction->setEnabled(
+        n && TaxonRanks::canHostPlantInfo(n->rank) && !searching);
     m_renameAction->setEnabled(n != nullptr);
     m_deleteAction->setEnabled(n != nullptr);
+    m_view->setEditEnabled(m_editAction->isEnabled());
 
     if (!n) {
         m_addAction->setText(QStringLiteral("新建第一级分类（界）"));
@@ -1158,16 +1169,42 @@ void MainWindow::removeSelected()
     saveData();
 }
 
-void MainWindow::saveData()
+bool MainWindow::saveData()
 {
     if (!m_document || m_document->isEmpty())
-        return;
+        return true;
+
+    QString backupNote;
+    if (m_loadFailed) {
+        const QString backupPath = QDir(m_dataDir).filePath(
+            QStringLiteral("plantmap.invalid-%1.json")
+                .arg(QDateTime::currentDateTime().toString(
+                    QStringLiteral("yyyyMMdd_hhmmss_zzz"))));
+        if (QFile::exists(m_dataFile) && !QFile::copy(m_dataFile, backupPath)) {
+            showError(QStringLiteral("无法备份原数据文件"),
+                      QStringLiteral("保存前需要先保留无法加载的原文件，"
+                                     "但复制备份失败：\n%1\n\n"
+                                     "为避免丢失原数据，本次没有保存。")
+                          .arg(backupPath));
+            return false;
+        }
+        backupNote = backupPath;
+    }
+
     QString error;
     if (!m_document->saveToFile(m_dataFile, &error)) {
         showError(QStringLiteral("保存失败"), error);
-        return;
+        return false;
     }
-    setStatus(QStringLiteral("已保存：%1").arg(m_dataFile));
+
+    m_loadFailed = false;
+    if (!backupNote.isEmpty()) {
+        setStatus(QStringLiteral("原数据文件已备份到 %1，新数据已保存：%2")
+                      .arg(backupNote, m_dataFile));
+    } else {
+        setStatus(QStringLiteral("已保存：%1").arg(m_dataFile));
+    }
+    return true;
 }
 
 void MainWindow::openDataDir()
@@ -1178,7 +1215,10 @@ void MainWindow::openDataDir()
 
 void MainWindow::closeEvent(QCloseEvent* event)
 {
-    saveData();
+    if (!saveData()) {
+        event->ignore();
+        return;
+    }
     event->accept();
 }
 

@@ -18,6 +18,8 @@ find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
 add_library(plantcore STATIC
     src/core/dbversion.cpp
     src/core/dbversion.h
+    src/core/displayformat.cpp
+    src/core/displayformat.h
     src/core/taxonrank.cpp
     src/core/speciesinfo.cpp
     src/core/taxondocument.cpp
