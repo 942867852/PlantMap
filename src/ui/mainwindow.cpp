@@ -159,10 +159,10 @@ void MainWindow::buildUi()
     m_renameAction->setShortcut(QKeySequence(Qt::Key_F2));
     m_deleteAction = toolbar->addAction(QStringLiteral("删除"));
     m_deleteAction->setShortcut(QKeySequence(Qt::Key_Delete));
-    auto* cloneAction = toolbar->addAction(QStringLiteral("复制节点"));
+    m_cloneAction = toolbar->addAction(QStringLiteral("复制节点"));
     toolbar->addSeparator();
-    auto* batchSetAction = toolbar->addAction(QStringLiteral("批量设置属性…"));
-    auto* batchDeleteAction = toolbar->addAction(QStringLiteral("批量删除"));
+    m_batchSetAction = toolbar->addAction(QStringLiteral("批量设置属性…"));
+    m_batchDeleteAction = toolbar->addAction(QStringLiteral("批量删除"));
     toolbar->addSeparator();
     m_undoAction = toolbar->addAction(QStringLiteral("撤销"));
     m_undoAction->setShortcut(QKeySequence::Undo);
@@ -181,9 +181,9 @@ void MainWindow::buildUi()
     connect(m_editAction, &QAction::triggered, this, &MainWindow::openSpeciesEditor);
     connect(m_renameAction, &QAction::triggered, this, &MainWindow::renameSelected);
     connect(m_deleteAction, &QAction::triggered, this, &MainWindow::removeSelected);
-    connect(cloneAction, &QAction::triggered, this, &MainWindow::cloneSelected);
-    connect(batchSetAction, &QAction::triggered, this, &MainWindow::batchSetAttribute);
-    connect(batchDeleteAction, &QAction::triggered, this, &MainWindow::batchDelete);
+    connect(m_cloneAction, &QAction::triggered, this, &MainWindow::cloneSelected);
+    connect(m_batchSetAction, &QAction::triggered, this, &MainWindow::batchSetAttribute);
+    connect(m_batchDeleteAction, &QAction::triggered, this, &MainWindow::batchDelete);
     connect(m_undoAction, &QAction::triggered, this, &MainWindow::undo);
     connect(m_redoAction, &QAction::triggered, this, &MainWindow::redo);
     connect(m_saveAction, &QAction::triggered, this, &MainWindow::saveData);
@@ -312,10 +312,15 @@ void MainWindow::buildUi()
 
     connect(m_tree, &QTreeWidget::currentItemChanged,
             this, &MainWindow::onTreeSelectionChanged);
+    // 多选变化（Ctrl/Shift/框选）只触发 selectionChanged，用它刷新批量按钮状态。
+    connect(m_tree, &QTreeWidget::itemSelectionChanged,
+            this, &MainWindow::refreshActionState);
     connect(m_view, &SpeciesViewForm::editRequested,
             this, &MainWindow::openSpeciesEditor);
     connect(m_view, &SpeciesViewForm::favoriteToggled,
             this, &MainWindow::toggleFavorite);
+    connect(m_view, &SpeciesViewForm::compareToggled,
+            this, &MainWindow::toggleCompare);
     connect(m_searchEdit, &QLineEdit::textChanged,
             this, &MainWindow::onSearchTextChanged);
     connect(m_searchResults, &QListWidget::itemClicked,
@@ -412,6 +417,7 @@ void MainWindow::onTreeSelectionChanged()
     const int id = selectedNodeId();
     m_view->showNode(id);
     m_view->setFavorite(m_favorites.contains(id));
+    m_view->setCompared(m_compareList.contains(id));
     refreshActionState();
 }
 
@@ -435,6 +441,11 @@ void MainWindow::onSearchTextChanged(const QString& text)
     m_editAction->setEnabled(false);
     m_renameAction->setEnabled(false);
     m_deleteAction->setEnabled(false);
+    m_cloneAction->setEnabled(false);
+    if (m_batchSetAction)
+        m_batchSetAction->setEnabled(false);
+    if (m_batchDeleteAction)
+        m_batchDeleteAction->setEnabled(false);
     m_view->setEditEnabled(false);
 
     // 防抖：输入停顿 200ms 后再真正执行搜索，避免每敲一个字符都全量遍历。
@@ -547,6 +558,8 @@ void MainWindow::goToPlantFromSearch(QListWidgetItem* item)
     m_searchEdit->clear();
     rebuildTree(id);
     m_view->showNode(id);
+    m_view->setFavorite(m_favorites.contains(id));
+    m_view->setCompared(m_compareList.contains(id));
     refreshActionState();
 }
 
@@ -782,6 +795,9 @@ void MainWindow::importDatabase()
         m_searchEdit->clear();
         m_searchThumbCache.clear();
         m_undoManager.clear();
+        // 文档已替换/还原：旧的收藏与对比 id 不再适用，清空避免指向错误节点。
+        m_favorites.clearAll();
+        m_compareList.clear();
         rebuildTree();
         selectFirstPlantItem();
         refreshActionState();
@@ -806,6 +822,9 @@ void MainWindow::importDatabase()
     m_searchThumbCache.clear();
     m_loadFailed = false;
     m_undoManager.clear();
+    // 导入的是新库：旧的收藏与对比 id 不适用，清空避免指向错误节点。
+    m_favorites.clearAll();
+    m_compareList.clear();
     rebuildTree();
     selectFirstPlantItem();
     refreshActionState();
@@ -1151,25 +1170,30 @@ void MainWindow::openStats()
 
 void MainWindow::openCompare()
 {
-    QList<int> ids = selectedNodeIds();
-    // 只保留能承载资料的节点。
-    QList<int> plantIds;
-    for (int id : ids) {
+    // 清理已不存在的节点（例如被删除的植物）。
+    QList<int> valid;
+    for (int id : m_compareList) {
         const TaxonNode* n = m_document->node(id);
         if (n && TaxonRanks::canHostPlantInfo(n->rank))
-            plantIds.append(id);
+            valid.append(id);
     }
+    m_compareList = valid;
 
-    if (plantIds.isEmpty()) {
+    if (m_compareList.isEmpty()) {
         QMessageBox::information(
             this, QStringLiteral("物种对比"),
-            QStringLiteral("请先在左侧分类树中多选 2~5 个植物（种/亚种等）"
-                           "（按住 Ctrl 或 Shift 点选），再点“对比”。"));
+            QStringLiteral("对比列表还是空的。\n\n"
+                           "请先浏览植物，在详情页点击“＋ 加入对比”，"
+                           "把要比较的植物加入列表，再点“对比”查看。"));
         return;
     }
 
-    CompareDialog dialog(m_document, plantIds, this);
+    CompareDialog dialog(m_document, &m_compareList, this);
     dialog.exec();
+
+    // 对比对话框关闭后，同步当前节点的按钮状态（可能在对话框里删除了植物）。
+    const int id = selectedNodeId();
+    m_view->setCompared(m_compareList.contains(id));
 }
 
 void MainWindow::openSpeciesEditor()
@@ -1240,7 +1264,17 @@ void MainWindow::refreshActionState()
         n && TaxonRanks::canHostPlantInfo(n->rank) && !searching);
     m_renameAction->setEnabled(n != nullptr);
     m_deleteAction->setEnabled(n != nullptr);
+    // 复制节点与批量操作同样只在非搜索状态可用（搜索时树隐藏，不能操作隐藏选择）。
+    m_cloneAction->setEnabled(n != nullptr && !searching);
     m_view->setEditEnabled(m_editAction->isEnabled());
+
+    // 批量操作只在“非搜索”状态可用；搜索时树被隐藏，不能对隐藏树的旧选择操作。
+    const int multiSelected = m_tree->selectedItems().size();
+    const bool batchable = !searching && multiSelected >= 2;
+    if (m_batchSetAction)
+        m_batchSetAction->setEnabled(batchable);
+    if (m_batchDeleteAction)
+        m_batchDeleteAction->setEnabled(batchable);
 
     if (!n) {
         m_addAction->setText(QStringLiteral("新建第一级分类（界）"));
@@ -1409,6 +1443,20 @@ void MainWindow::removeSubtreeAndPhotos(int id)
     // 只有变成“孤儿”的文件才会从 photos/ 目录删除。
     const QSet<QString> subtreePhotos = collectSubtreePhotos(id);
 
+    // 删除前收集子树内所有节点 id，用于同步清理对比列表。
+    QList<int> doomedIds;
+    {
+        std::function<void(int)> collectIds = [&](int nodeId) {
+            doomedIds.append(nodeId);
+            const TaxonNode* n = m_document->node(nodeId);
+            if (n) {
+                for (int childId : n->childIds)
+                    collectIds(childId);
+            }
+        };
+        collectIds(id);
+    }
+
     // 记录子树 JSON 与照片字节，供“撤销删除”恢复。
     UndoCommand cmd;
     cmd.type = UndoCommand::RemoveNode;
@@ -1431,6 +1479,11 @@ void MainWindow::removeSubtreeAndPhotos(int id)
         return;
     }
     m_undoManager.push(cmd);
+
+    // 清理对比列表与收藏夹中已删除节点及其子树的 id。
+    for (int doomedId : doomedIds)
+        m_compareList.removeAll(doomedId);
+    m_favorites.removeIds(doomedIds);
 
     const QSet<QString> stillReferenced = collectAllReferencedPhotos();
     QStringList removed;
@@ -1535,15 +1588,29 @@ void MainWindow::batchDelete()
 void MainWindow::batchSetAttribute()
 {
     // 只对“种/亚种/变种/变型/品种”这类能承载资料的节点批量设置属性。
+    // 注意：没有资料（即还没有拉丁学名）的节点无法 setInfo（学名必填），
+    // 需要预先过滤并在提示中说明，避免“说改 N 个实际只改几个”的误导。
     QList<int> plantIds;
+    int skippedNoInfo = 0;
     for (int id : selectedNodeIds()) {
         const TaxonNode* n = m_document->node(id);
-        if (n && TaxonRanks::canHostPlantInfo(n->rank))
-            plantIds.append(id);
+        if (!n || !TaxonRanks::canHostPlantInfo(n->rank))
+            continue;
+        if (!n->hasInfo) {
+            ++skippedNoInfo;
+            continue;
+        }
+        plantIds.append(id);
     }
     if (plantIds.isEmpty()) {
         QMessageBox::information(this, QStringLiteral("批量设置属性"),
-                                 QStringLiteral("请先多选“种 / 亚种”等可承载资料的植物节点。"));
+                                 skippedNoInfo > 0
+                                     ? QStringLiteral(
+                                           "选中的植物都没有已保存的资料"
+                                           "（尚未填写拉丁学名），无法批量设置属性。\n\n"
+                                           "请先为它们逐个编辑并保存资料，"
+                                           "或改选已保存资料的植物。")
+                                     : QStringLiteral("请先多选“种 / 亚种”等可承载资料的植物节点。"));
         return;
     }
 
@@ -1618,6 +1685,17 @@ void MainWindow::batchSetAttribute()
     const QString key = attrCombo->currentData().toString();
     const QString value = valueCombo->currentData().toString();
 
+    // 生境为自由文本：空文本意味着“未填写”，直接应用会清空所有选中植物的
+    // 生境。误触概率高，拒绝空值并提示。
+    if (key == QLatin1String("habitat")
+        && valueCombo->currentText().trimmed().isEmpty()) {
+        QMessageBox::warning(this, QStringLiteral("批量设置属性"),
+                             QStringLiteral("生境不能为空。\n"
+                                            "请输入要设置的生境文本，"
+                                            "或取消本次操作。"));
+        return;
+    }
+
     int applied = 0;
     for (int id : plantIds) {
         const TaxonNode* n = m_document->node(id);
@@ -1660,7 +1738,13 @@ void MainWindow::batchSetAttribute()
     m_view->showNode(selectedNodeId());
     refreshActionState();
     saveData();
-    setStatus(QStringLiteral("已对 %1 个植物批量设置属性。").arg(applied));
+    if (skippedNoInfo > 0) {
+        setStatus(QStringLiteral("已对 %1 个植物批量设置属性"
+                                 "（%2 个尚无资料的植物被跳过）。")
+                      .arg(applied).arg(skippedNoInfo));
+    } else {
+        setStatus(QStringLiteral("已对 %1 个植物批量设置属性。").arg(applied));
+    }
 }
 
 bool MainWindow::saveData()
@@ -1833,8 +1917,10 @@ void MainWindow::undo()
     const int newId = m_undoManager.undo();
     if (newId < 0)
         return;
-    rebuildTree();
+    rebuildTree(newId);
     m_view->showNode(newId > 0 ? newId : 0);
+    m_view->setFavorite(newId > 0 && m_favorites.contains(newId));
+    m_view->setCompared(newId > 0 && m_compareList.contains(newId));
     refreshActionState();
     refreshUndoActions();
 }
@@ -1844,8 +1930,10 @@ void MainWindow::redo()
     const int newId = m_undoManager.redo();
     if (newId < 0)
         return;
-    rebuildTree();
+    rebuildTree(newId);
     m_view->showNode(newId > 0 ? newId : 0);
+    m_view->setFavorite(newId > 0 && m_favorites.contains(newId));
+    m_view->setCompared(newId > 0 && m_compareList.contains(newId));
     refreshActionState();
     refreshUndoActions();
 }
@@ -1861,6 +1949,30 @@ void MainWindow::toggleFavorite(int nodeId)
     const bool nowFavorite = m_favorites.toggle(nodeId);
     m_view->setFavorite(nowFavorite);
     m_favorites.save();
+}
+
+void MainWindow::toggleCompare(int nodeId)
+{
+    if (nodeId <= 0)
+        return;
+    if (m_compareList.contains(nodeId)) {
+        m_compareList.removeAll(nodeId);
+    } else {
+        // 对比上限 5 个，超出时提示。
+        if (m_compareList.size() >= 5) {
+            QMessageBox::information(
+                this, QStringLiteral("加入对比"),
+                QStringLiteral("对比列表最多 5 个植物。\n"
+                               "请先在对比页面移除一个，再加入新的。"));
+            m_view->setCompared(false);
+            return;
+        }
+        m_compareList.append(nodeId);
+    }
+    m_view->setCompared(m_compareList.contains(nodeId));
+    setStatus(m_compareList.contains(nodeId)
+                  ? QStringLiteral("已加入对比（当前 %1 个）。").arg(m_compareList.size())
+                  : QStringLiteral("已从对比列表移除（当前 %1 个）。").arg(m_compareList.size()));
 }
 
 void MainWindow::openFavorites()
@@ -1907,6 +2019,7 @@ void MainWindow::openFavorites()
         rebuildTree(id);
         m_view->showNode(id);
         m_view->setFavorite(m_favorites.contains(id));
+        m_view->setCompared(m_compareList.contains(id));
         refreshActionState();
         dialog.accept();
     });

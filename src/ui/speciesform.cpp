@@ -38,6 +38,7 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QPlainTextEdit>
+#include <QPointer>
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QResizeEvent>
@@ -1034,9 +1035,12 @@ void SpeciesForm::addPhotosFromFiles(const QStringList& files)
 
     const int nodeId = m_nodeId;
     const QString photosPath = photosDir.absolutePath();
+    // 后台复制期间窗口可能被关闭（对象销毁）。用 QPointer 检测：
+    // 若回调时对象已销毁，则删除刚复制出来的孤儿文件，避免残留。
+    const QPointer<SpeciesForm> self(this);
 
     // 后台线程复制（大图复制不再阻塞 UI），完成后回主线程更新列表。
-    QtConcurrent::run([this, nodeId, photosPath, files]() {
+    QtConcurrent::run([this, self, nodeId, photosPath, files]() {
         QStringList added;
         for (const QString& source : files) {
             const QFileInfo sourceInfo(source);
@@ -1064,16 +1068,23 @@ void SpeciesForm::addPhotosFromFiles(const QStringList& files)
                 qWarning() << "复制照片失败:" << source;
         }
 
-        // 回主线程更新照片列表。
-        QMetaObject::invokeMethod(this, [this, added]() {
+        // 回主线程更新照片列表；若对象已销毁（窗口被关闭），清理孤儿文件。
+        QMetaObject::invokeMethod(this, [self, photosPath, added]() {
+            if (!self) {
+                // 编辑窗口已关闭：删除这次复制但未被引用的文件。
+                const QDir dir(photosPath);
+                for (const QString& fileName : added)
+                    QFile::remove(dir.filePath(fileName));
+                return;
+            }
             if (added.isEmpty())
                 return;
             for (const QString& fileName : added) {
-                m_photoList->addItem(buildPhotoItem(fileName));
-                if (!m_copiedPhotosThisSession.contains(fileName))
-                    m_copiedPhotosThisSession.append(fileName);
+                self->m_photoList->addItem(self->buildPhotoItem(fileName));
+                if (!self->m_copiedPhotosThisSession.contains(fileName))
+                    self->m_copiedPhotosThisSession.append(fileName);
             }
-            m_photoList->setCurrentRow(m_photoList->count() - added.size());
+            self->m_photoList->setCurrentRow(self->m_photoList->count() - added.size());
         }, Qt::QueuedConnection);
     });
 }

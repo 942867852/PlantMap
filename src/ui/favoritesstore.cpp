@@ -52,6 +52,23 @@ void FavoritesStore::save() const
     file.close();
 }
 
+void FavoritesStore::clearAll()
+{
+    m_favorites.clear();
+    save();
+}
+
+void FavoritesStore::removeIds(const QList<int>& nodeIds)
+{
+    bool changed = false;
+    for (int id : nodeIds) {
+        if (m_favorites.remove(id) > 0)
+            changed = true;
+    }
+    if (changed)
+        save();
+}
+
 bool FavoritesStore::contains(int nodeId) const
 {
     return m_favorites.contains(nodeId);

@@ -46,6 +46,7 @@ private slots:
     void openDataDir();
     void toggleFavorite(int nodeId);
     void openFavorites();
+    void toggleCompare(int nodeId);
     void cloneSelected();
     void exportCopy();
     void exportCsv();
@@ -93,12 +94,16 @@ private:
     QAction* m_editAction = nullptr;
     QAction* m_renameAction = nullptr;
     QAction* m_deleteAction = nullptr;
+    QAction* m_cloneAction = nullptr;
     QAction* m_saveAction = nullptr;
     QAction* m_undoAction = nullptr;
     QAction* m_redoAction = nullptr;
+    QAction* m_batchSetAction = nullptr;
+    QAction* m_batchDeleteAction = nullptr;
     QHash<QString, QIcon> m_searchThumbCache;
     FavoritesStore m_favorites;
     UndoManager m_undoManager;
+    QList<int> m_compareList;   // 对比列表（会话内，按加入顺序）
     QTimer* m_searchDebounceTimer = nullptr;
     QString m_pendingSearchText;
     QString m_dataDir;

@@ -35,10 +35,13 @@ public:
     void setEditEnabled(bool enabled);
     // 设置当前节点是否已收藏，更新收藏按钮外观。
     void setFavorite(bool favorite);
+    // 设置当前节点是否已在对比列表中，更新“加入对比/移除对比”按钮外观。
+    void setCompared(bool compared);
 
 signals:
     void editRequested(int nodeId);
     void favoriteToggled(int nodeId);
+    void compareToggled(int nodeId);
 
 private slots:
     void onPhotoSelectionChanged(QListWidgetItem* current,
@@ -65,6 +68,7 @@ private:
     QLabel* m_pathLabel = nullptr;
     QPushButton* m_editButton = nullptr;
     QPushButton* m_favoriteButton = nullptr;
+    QPushButton* m_compareButton = nullptr;
 
     // 照片展示
     QLabel* m_photoPreview = nullptr;

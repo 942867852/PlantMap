@@ -130,6 +130,16 @@ void SpeciesViewForm::setFavorite(bool favorite)
                                        : QStringLiteral("☆ 收藏"));
 }
 
+void SpeciesViewForm::setCompared(bool compared)
+{
+    if (!m_compareButton)
+        return;
+    const QSignalBlocker blocker(m_compareButton);
+    m_compareButton->setChecked(compared);
+    m_compareButton->setText(compared ? QStringLiteral("已加入对比")
+                                      : QStringLiteral("＋ 加入对比"));
+}
+
 QWidget* SpeciesViewForm::buildEmptyPage()
 {
     auto* page = new QWidget(this);
@@ -174,9 +184,14 @@ QWidget* SpeciesViewForm::buildDetailPage()
     m_favoriteButton->setMinimumHeight(30);
     m_favoriteButton->setCheckable(true);
     m_favoriteButton->setToolTip(QStringLiteral("收藏这个植物，方便在“收藏夹”里快速找到"));
+    m_compareButton = new QPushButton(QStringLiteral("＋ 加入对比"), content);
+    m_compareButton->setMinimumHeight(30);
+    m_compareButton->setCheckable(true);
+    m_compareButton->setToolTip(QStringLiteral("把这个植物加入对比列表，可多个植物并排比较属性"));
 
     auto* actionRow = new QHBoxLayout;
     actionRow->addWidget(m_favoriteButton);
+    actionRow->addWidget(m_compareButton);
     actionRow->addStretch();
     actionRow->addWidget(m_editButton);
     outer->addLayout(actionRow);
@@ -189,6 +204,11 @@ QWidget* SpeciesViewForm::buildDetailPage()
         setFavorite(checked);
         if (m_nodeId > 0)
             emit favoriteToggled(m_nodeId);
+    });
+    connect(m_compareButton, &QPushButton::clicked, this, [this](bool checked) {
+        setCompared(checked);
+        if (m_nodeId > 0)
+            emit compareToggled(m_nodeId);
     });
 
     // ---------------- 图片 ----------------

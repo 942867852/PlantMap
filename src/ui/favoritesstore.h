@@ -22,6 +22,10 @@ public:
     void load();
     // 把当前集合写回 favorites.json（按 id 升序）。
     void save() const;
+    // 清空全部收藏并写回磁盘（导入新数据库后调用，旧 id 不适用新库）。
+    void clearAll();
+    // 批量移除收藏（删除节点子树后调用，避免死 id 残留）；若集合有变化会写盘。
+    void removeIds(const QList<int>& nodeIds);
 
     bool contains(int nodeId) const;
     // 切换收藏状态；返回切换后的状态（true=已收藏）。
