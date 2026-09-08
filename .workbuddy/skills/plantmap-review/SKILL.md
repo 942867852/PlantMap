@@ -77,9 +77,37 @@ agent_created: true
 - 撤销/重做（UndoCommand 四种类型 AddNode/RemoveNode/RenameNode/SetInfo + 双栈）：
   - 删除节点的撤销要能恢复子树 JSON 与被删照片文件字节；
   - Add/Remove 会重建节点、id 可能变化，undo/redo 后要更新命令里的 nodeId；
-  - 栈深有上限（如 100），超限丢最旧；undo/redo 后栈状态一致、动作按钮 enable 状态正确。
+  - 栈深有上限（如 100），超限丢最旧；undo/redo 后栈状态一致、动作按钮 enable 状态正确；
+  - **undo/redo 后要同步 UI 状态**：rebuildTree 用 QSignalBlocker 不会触发选择信号，
+    必须显式 `rebuildTree(newId)` 选中节点 + `showNode(newId)` + 同步收藏/对比按钮
+    （setFavorite/setCompared）+ refreshActionState，否则树无选中、工具栏按钮被禁用
+    （2026-09 发现 undo/redo 后收藏/对比状态停留在旧节点）。
 - 收藏夹：收藏状态持久化（load/save），切换收藏即时更新按钮外观与详情页；收藏夹窗口
   能正确跳转到对应植物。
+
+## 批量操作与物种对比
+
+- 批量操作（batchDelete / batchSetAttribute）基于树 ExtendedSelection 多选：
+  - 批量删除要先去重父子节点（只删“最上层”），逐节点入 undo 栈；
+  - **批量设置属性按钮文案与实际应用数必须一致**：setInfo 强制学名非空，没有资料
+    （hasInfo=false，尚无学名）的节点无法 setInfo，必须预先过滤并在提示中说明
+    “跳过 N 个无资料节点”，不得出现“应用到 N 个”实际只改部分的误导（2026-09 发现）。
+- 物种对比（compareList 会话列表 + CompareDialog）：
+  - 详情页“＋ 加入对比”按钮（checkable）与主窗口 m_compareList 双向同步；
+    从搜索/收藏夹跳转、undo/redo、删除节点后都要刷新按钮状态；
+  - 删除节点（removeSubtreeAndPhotos）要同步清理对比列表中该子树所有 id
+    （删除前收集 doomedIds，删除后 removeAll）；
+  - 对比对话框内移除植物按**节点 id** 删除（不能按列下标——列表可能含已被过滤的
+    无效节点导致下标错位删错）；删空后要显示空状态而非空表格（2026-09 发现下标 bug）。
+
+## 异步任务生命周期
+
+- 凡 QtConcurrent::run / QThread 后台任务捕获 `this`：
+  - 模态编辑窗可在任务进行中被关闭（对象销毁），回调若在已销毁对象上执行会崩溃；
+  - `QMetaObject::invokeMethod(context, functor, QueuedConnection)` 的 context 销毁后
+    functor 会被 Qt 丢弃（不会崩），但要处理“孤儿文件/资源”：
+    后台已复制但回调未执行的文件需用 QPointer 检测并清理（2026-09 照片异步复制）；
+  - 后台 lambda 只做纯 IO，UI 更新一律回主线程。
 
 ## 持久化与迁移
 
