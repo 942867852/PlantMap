@@ -35,14 +35,20 @@
 | `speciesinfo.h/.cpp` | 物种资料：环境需求、生长形态、物候、地理分布、照片、扩展属性 |
 | `taxondocument.h/.cpp` | 整棵分类树 + 资料 + 拉丁名索引 + JSON 持久化 + 子树克隆/恢复 |
 | `displayformat.h/.cpp` | 月份区间、数值范围、一位小数等纯格式化 |
+| `csvexport.h/.cpp` | CSV 导出（固定列 + 属性列自动推导） |
 | `pinyin.h` / `pinyin_first.h` | 中文名拼音首字母检索（输入 `yx` 匹配“银杏”） |
-| `mainwindow.h/.cpp` | 主窗口、分类树、搜索、增删改、撤销重做、收藏夹、导入导出入口 |
+| `mainwindow.h/.cpp` | 主窗口、分类树、搜索、增删改、撤销重做、收藏夹、批量操作、导入导出入口 |
 | `speciesview.h/.cpp` | 物种资料只读详情页（图片 + 全部属性 + 地图） |
 | `speciesform.h/.cpp` | 物种资料编辑表单（独立编辑窗口 + 草稿自动保存） |
+| `specieseditdialog.h/.cpp` | 资料编辑对话框（保存/取消 + 回滚 + 孤儿照片清理） |
+| `undomanager.h/.cpp` | 撤销/重做命令栈（AddNode/RemoveNode/RenameNode/SetInfo） |
+| `favoritesstore.h/.cpp` | 收藏夹存储（favorites.json 持久化） |
+| `statsdialog.h/.cpp` | 统计面板（总览/等级分布/习性分布/省区分布） |
+| `comparedialog.h/.cpp` | 物种属性对比表格 |
 | `province_map_widget.h/.cpp` | 中国省级行政区示意图控件（点击多选 / 只读展示） |
 | `china_map_data.h` | 省界坐标数据（含港澳台、南海诸岛、十段线） |
 | `photolightbox.h/.cpp` | 全屏照片灯箱（前后翻页 / Esc 关闭） |
-| `photoimageutils.h` | 照片按需缩放加载（缩略图/搜索图标/大图预览） |
+| `photoimageutils.h/.cpp` | 照片按需缩放加载 + 缩略图缓存 |
 | `wheelignorefilter.h` | 拦截下拉/数值控件的滚轮误改 |
 
 ## 数据文件

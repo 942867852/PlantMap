@@ -5,6 +5,7 @@
 #include <QJsonDocument>
 #include <QTemporaryFile>
 
+#include "csvexport.h"
 #include "dbversion.h"
 #include "displayformat.h"
 #include "pinyin.h"
@@ -482,6 +483,34 @@ int main(int argc, char* argv[])
     const int restoredId = cloneDoc.restoreSubtreeFromJson(subJson, genusId2, &rankError);
     check(restoredId > 0 && cloneDoc.node(restoredId) != nullptr,
           QStringLiteral("restoreSubtreeFromJson 恢复被删子树"));
+
+    // 31. CSV 导出：字段自动推导 + 含 custom 扩展属性 + 逗号转义
+    TaxonomyDocument csvDoc;
+    const int csvSp = appendChain(csvDoc,
+        { QStringLiteral("植物界"), QStringLiteral("被子植物门"),
+          QStringLiteral("木兰纲"), QStringLiteral("蔷薇目"),
+          QStringLiteral("蔷薇科"), QStringLiteral("蔷薇属"),
+          QStringLiteral("玫瑰") }, &rankError);
+    SpeciesInfo csvInfo;
+    csvInfo.scientificName = QStringLiteral("Rosa rugosa");
+    csvInfo.habit = GrowthHabit::Shrub;
+    csvInfo.custom.insert(QStringLiteral("耐盐碱性"), QStringLiteral("强"));
+    csvInfo.custom.insert(QStringLiteral("备注"), QStringLiteral("含逗号,的字段"));
+    csvDoc.setInfo(csvSp, csvInfo, &rankError);
+
+    QString csvText;
+    QString csvError;
+    check(CsvExport::generate(csvDoc, &csvText, &csvError),
+          QStringLiteral("CSV 导出成功"));
+    check(csvText.contains(QStringLiteral("等级"))
+              && csvText.contains(QStringLiteral("拉丁学名"))
+              && csvText.contains(QStringLiteral("耐盐碱性"))
+              && csvText.contains(QStringLiteral("备注")),
+          QStringLiteral("CSV 含固定列 + 自动推导的 custom 列"));
+    check(csvText.contains(QStringLiteral("Rosa rugosa"))
+              && csvText.contains(QStringLiteral("灌木"))
+              && csvText.contains(QStringLiteral("\"含逗号,的字段\"")),
+          QStringLiteral("CSV 内容正确且逗号字段被转义"));
 
     qInfo() << (failures == 0 ? QStringLiteral("全部自检通过")
                               : QStringLiteral("存在 %1 项失败").arg(failures));

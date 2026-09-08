@@ -51,6 +51,8 @@
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <QtConcurrent>
+
 #include <algorithm>
 #include <functional>
 
@@ -298,10 +300,13 @@ QWidget* SpeciesForm::buildFormPage()
     m_photoList->setIconSize(QSize(88, 88));
     m_photoList->setViewMode(QListView::IconMode);
     m_photoList->setResizeMode(QListView::Adjust);
-    m_photoList->setMovement(QListView::Static);
+    // 允许拖拽调序：照片顺序决定封面图（第一张）与展示顺序。
+    m_photoList->setMovement(QListView::Free);
+    m_photoList->setDragDropMode(QAbstractItemView::InternalMove);
     m_photoList->setSelectionMode(QAbstractItemView::ExtendedSelection);
     m_photoList->setMinimumHeight(104);
     m_photoList->setToolTip(QStringLiteral("选中即切换上方大图；"
+                                           "可拖拽调序（第一张为封面）；"
                                            "可多选后从资料中移除。"));
     photoLayout->addWidget(m_photoList);
 
@@ -1027,44 +1032,50 @@ void SpeciesForm::addPhotosFromFiles(const QStringList& files)
         return;
     }
 
-    QStringList added;
-    for (const QString& source : files) {
-        const QFileInfo sourceInfo(source);
-        const QString base = sanitizeBaseName(sourceInfo.completeBaseName());
-        const QString suffix = sourceInfo.suffix();
-        const qint64 stamp = QDateTime::currentMSecsSinceEpoch();
+    const int nodeId = m_nodeId;
+    const QString photosPath = photosDir.absolutePath();
 
-        QString candidate = QStringLiteral("node%1_%2_%3")
-                                .arg(m_nodeId).arg(stamp).arg(base);
-        if (!suffix.isEmpty())
-            candidate += QLatin1Char('.') + suffix;
+    // 后台线程复制（大图复制不再阻塞 UI），完成后回主线程更新列表。
+    QtConcurrent::run([this, nodeId, photosPath, files]() {
+        QStringList added;
+        for (const QString& source : files) {
+            const QFileInfo sourceInfo(source);
+            const QString base = sanitizeBaseName(sourceInfo.completeBaseName());
+            const QString suffix = sourceInfo.suffix();
+            const qint64 stamp = QDateTime::currentMSecsSinceEpoch();
 
-        int counter = 0;
-        while (QFileInfo(photosDir.filePath(candidate)).exists()) {
-            candidate = QStringLiteral("node%1_%2_%3_%4")
-                            .arg(m_nodeId).arg(stamp).arg(base).arg(++counter);
+            QString candidate = QStringLiteral("node%1_%2_%3")
+                                    .arg(nodeId).arg(stamp).arg(base);
             if (!suffix.isEmpty())
                 candidate += QLatin1Char('.') + suffix;
+
+            int counter = 0;
+            const QDir dir(photosPath);
+            while (QFileInfo(dir.filePath(candidate)).exists()) {
+                candidate = QStringLiteral("node%1_%2_%3_%4")
+                                .arg(nodeId).arg(stamp).arg(base).arg(++counter);
+                if (!suffix.isEmpty())
+                    candidate += QLatin1Char('.') + suffix;
+            }
+
+            if (QFile::copy(source, dir.filePath(candidate)))
+                added.append(candidate);
+            else
+                qWarning() << "复制照片失败:" << source;
         }
 
-        if (QFile::copy(source, photosDir.filePath(candidate)))
-            added.append(candidate);
-        else
-            qWarning() << "复制照片失败:" << source;
-    }
-
-    if (added.isEmpty())
-        return;
-
-    // 照片添加只改表单列表，不写文档：与其他未保存修改一起，
-    // 等用户点“保存”时统一提交；点“取消”时会话复制的文件由编辑窗口清理。
-    for (const QString& fileName : added) {
-        m_photoList->addItem(buildPhotoItem(fileName));
-        if (!m_copiedPhotosThisSession.contains(fileName))
-            m_copiedPhotosThisSession.append(fileName);
-    }
-    // 高亮刚添加的第一张照片，currentItemChanged 会自动切换大图预览。
-    m_photoList->setCurrentRow(m_photoList->count() - added.size());
+        // 回主线程更新照片列表。
+        QMetaObject::invokeMethod(this, [this, added]() {
+            if (added.isEmpty())
+                return;
+            for (const QString& fileName : added) {
+                m_photoList->addItem(buildPhotoItem(fileName));
+                if (!m_copiedPhotosThisSession.contains(fileName))
+                    m_copiedPhotosThisSession.append(fileName);
+            }
+            m_photoList->setCurrentRow(m_photoList->count() - added.size());
+        }, Qt::QueuedConnection);
+    });
 }
 
 void SpeciesForm::dragEnterEvent(QDragEnterEvent* event)

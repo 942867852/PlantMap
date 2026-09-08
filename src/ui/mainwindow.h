@@ -18,6 +18,8 @@ class QListWidgetItem;
 class QTreeWidget;
 class QTreeWidgetItem;
 class QAction;
+class QTimer;
+class QSplitter;
 
 class MainWindow : public QMainWindow
 {
@@ -33,6 +35,7 @@ protected:
 private slots:
     void onTreeSelectionChanged();
     void onSearchTextChanged(const QString& text);
+    void runSearchDebounced();
     void openSpeciesEditor();
     void openAdvancedSearch();
     void importDatabase();
@@ -45,8 +48,13 @@ private slots:
     void openFavorites();
     void cloneSelected();
     void exportCopy();
+    void exportCsv();
     void expandAllTree();
     void collapseAllTree();
+    void batchSetAttribute();
+    void batchDelete();
+    void openStats();
+    void openCompare();
     void undo();
     void redo();
 
@@ -61,6 +69,11 @@ private:
     void showError(const QString& title, const QString& message);
     void setStatus(const QString& message);
     void refreshUndoActions();
+    // 恢复/保存窗口与分隔条布局（QSettings）。
+    void restoreUiState();
+    void saveUiState();
+    // 收集当前树中所有选中节点的 id（含多选）。
+    QList<int> selectedNodeIds() const;
     // 收集某节点子树内所有被引用的照片文件名（相对 photos/ 的文件名）。
     QSet<QString> collectSubtreePhotos(int id) const;
     // 收集整个文档当前所有被引用的照片文件名。
@@ -71,6 +84,7 @@ private:
     TaxonomyDocument* m_document = nullptr;
     SpeciesViewForm* m_view = nullptr;
     QTreeWidget* m_tree = nullptr;
+    QSplitter* m_splitter = nullptr;
     QLabel* m_treeCaption = nullptr;
     QLineEdit* m_searchEdit = nullptr;
     QLabel* m_searchCaption = nullptr;
@@ -85,6 +99,8 @@ private:
     QHash<QString, QIcon> m_searchThumbCache;
     FavoritesStore m_favorites;
     UndoManager m_undoManager;
+    QTimer* m_searchDebounceTimer = nullptr;
+    QString m_pendingSearchText;
     QString m_dataDir;
     QString m_dataFile;
     bool m_loadFailed = false;

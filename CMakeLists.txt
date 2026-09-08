@@ -12,7 +12,7 @@ set(CMAKE_AUTORCC ON)
 set(PLANTMAP_BIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/bin" CACHE PATH
     "PlantMap 可执行文件输出目录")
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Core Widgets Concurrent)
 
 # 核心数据层：不依赖 Widgets，方便以后做命令行工具/自检
 add_library(plantcore STATIC
@@ -20,6 +20,8 @@ add_library(plantcore STATIC
     src/core/dbversion.h
     src/core/displayformat.cpp
     src/core/displayformat.h
+    src/core/csvexport.cpp
+    src/core/csvexport.h
     src/core/taxonrank.cpp
     src/core/speciesinfo.cpp
     src/core/taxondocument.cpp
@@ -34,6 +36,7 @@ qt_add_executable(PlantMap
     src/main.cpp
     src/ui/mainwindow.cpp
     src/ui/mainwindow.h
+    src/ui/photoimageutils.cpp
     src/ui/photoimageutils.h
     src/ui/photolightbox.cpp
     src/ui/photolightbox.h
@@ -50,12 +53,16 @@ qt_add_executable(PlantMap
     src/ui/favoritesstore.h
     src/ui/undomanager.cpp
     src/ui/undomanager.h
+    src/ui/statsdialog.cpp
+    src/ui/statsdialog.h
+    src/ui/comparedialog.cpp
+    src/ui/comparedialog.h
 )
 target_include_directories(PlantMap PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/src/ui
 )
-target_link_libraries(PlantMap PRIVATE plantcore Qt6::Widgets)
+target_link_libraries(PlantMap PRIVATE plantcore Qt6::Widgets Qt6::Concurrent)
 target_compile_definitions(PlantMap PRIVATE
     PLANTMAP_VERSION="${PROJECT_VERSION}"
 )

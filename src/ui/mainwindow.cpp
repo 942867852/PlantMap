@@ -1,10 +1,13 @@
 #include "mainwindow.h"
 
+#include "comparedialog.h"
+#include "csvexport.h"
 #include "dbversion.h"
 #include "photoimageutils.h"
 #include "pinyin.h"
 #include "specieseditdialog.h"
 #include "speciesform.h"
+#include "statsdialog.h"
 #include "wheelignorefilter.h"
 
 #include <QAbstractItemView>
@@ -36,12 +39,14 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QPixmap>
+#include <QSettings>
 #include <QSignalBlocker>
 #include <QSizePolicy>
 #include <QSplitter>
 #include <QStatusBar>
 #include <QTableWidget>
 #include <QTextStream>
+#include <QTimer>
 #include <QToolBar>
 #include <QTreeWidget>
 #include <QUrl>
@@ -98,12 +103,18 @@ MainWindow::MainWindow(const QString& dataDir, QWidget* parent)
         QString error;
         if (!m_document->loadFromFile(m_dataFile, &error)) {
             m_loadFailed = true;
+            // 立即把无法解析的原文件备份，避免被后续保存覆盖而丢失线索。
+            const QString backupPath = QDir(m_dataDir).filePath(
+                QStringLiteral("plantmap.corrupt-%1.json")
+                    .arg(QDateTime::currentDateTime().toString(
+                        QStringLiteral("yyyyMMdd_hhmmss_zzz"))));
+            QFile::copy(m_dataFile, backupPath);
             QMessageBox::warning(this, QStringLiteral("数据加载失败"),
                                  error
                                      + QStringLiteral(
                                            "\n\n将按空库启动。"
-                                           "原文件暂时不会改动；"
-                                           "保存新数据时程序会先保留原文件副本。"));
+                                           "无法解析的原文件已备份到：\n%1")
+                                     .arg(backupPath));
         }
     }
 
@@ -124,6 +135,7 @@ MainWindow::MainWindow(const QString& dataDir, QWidget* parent)
     selectFirstPlantItem();
     refreshActionState();
     refreshUndoActions();
+    restoreUiState();
     setWindowTitle(QStringLiteral("植物图谱 PlantMap v%1")
                        .arg(QStringLiteral(PLANTMAP_VERSION)));
     setStatus(QStringLiteral("数据文件：%1").arg(m_dataFile));
@@ -140,10 +152,17 @@ void MainWindow::buildUi()
     toolbar->setMovable(false);
 
     m_addAction = toolbar->addAction(QStringLiteral("添加下级分类"));
+    m_addAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+N")));
     m_editAction = toolbar->addAction(QStringLiteral("编辑资料…"));
+    m_editAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+E")));
     m_renameAction = toolbar->addAction(QStringLiteral("重命名"));
+    m_renameAction->setShortcut(QKeySequence(Qt::Key_F2));
     m_deleteAction = toolbar->addAction(QStringLiteral("删除"));
+    m_deleteAction->setShortcut(QKeySequence(Qt::Key_Delete));
     auto* cloneAction = toolbar->addAction(QStringLiteral("复制节点"));
+    toolbar->addSeparator();
+    auto* batchSetAction = toolbar->addAction(QStringLiteral("批量设置属性…"));
+    auto* batchDeleteAction = toolbar->addAction(QStringLiteral("批量删除"));
     toolbar->addSeparator();
     m_undoAction = toolbar->addAction(QStringLiteral("撤销"));
     m_undoAction->setShortcut(QKeySequence::Undo);
@@ -153,6 +172,8 @@ void MainWindow::buildUi()
     m_saveAction = toolbar->addAction(QStringLiteral("保存数据"));
     toolbar->addSeparator();
     auto* advancedAction = toolbar->addAction(QStringLiteral("高级检索…"));
+    auto* statsAction = toolbar->addAction(QStringLiteral("统计"));
+    auto* compareAction = toolbar->addAction(QStringLiteral("对比"));
     auto* favoritesAction = toolbar->addAction(QStringLiteral("收藏夹…"));
     auto* importAction = toolbar->addAction(QStringLiteral("导入数据库…"));
 
@@ -161,10 +182,14 @@ void MainWindow::buildUi()
     connect(m_renameAction, &QAction::triggered, this, &MainWindow::renameSelected);
     connect(m_deleteAction, &QAction::triggered, this, &MainWindow::removeSelected);
     connect(cloneAction, &QAction::triggered, this, &MainWindow::cloneSelected);
+    connect(batchSetAction, &QAction::triggered, this, &MainWindow::batchSetAttribute);
+    connect(batchDeleteAction, &QAction::triggered, this, &MainWindow::batchDelete);
     connect(m_undoAction, &QAction::triggered, this, &MainWindow::undo);
     connect(m_redoAction, &QAction::triggered, this, &MainWindow::redo);
     connect(m_saveAction, &QAction::triggered, this, &MainWindow::saveData);
     connect(advancedAction, &QAction::triggered, this, &MainWindow::openAdvancedSearch);
+    connect(statsAction, &QAction::triggered, this, &MainWindow::openStats);
+    connect(compareAction, &QAction::triggered, this, &MainWindow::openCompare);
     connect(favoritesAction, &QAction::triggered, this, &MainWindow::openFavorites);
     connect(importAction, &QAction::triggered, this, &MainWindow::importDatabase);
 
@@ -172,6 +197,7 @@ void MainWindow::buildUi()
     menu->addAction(QStringLiteral("保存数据"), this, &MainWindow::saveData);
     menu->addAction(QStringLiteral("导入数据库…"), this, &MainWindow::importDatabase);
     menu->addAction(QStringLiteral("导出副本…"), this, &MainWindow::exportCopy);
+    menu->addAction(QStringLiteral("导出 CSV…"), this, &MainWindow::exportCsv);
     menu->addAction(QStringLiteral("打开数据目录"), this, &MainWindow::openDataDir);
     menu->addSeparator();
     menu->addAction(QStringLiteral("退出"), this, &MainWindow::close);
@@ -201,13 +227,13 @@ void MainWindow::buildUi()
     auto* layout = new QHBoxLayout(central);
     layout->setContentsMargins(4, 4, 4, 4);
 
-    auto* splitter = new QSplitter(Qt::Horizontal, central);
-    splitter->setChildrenCollapsible(true);
-    splitter->setHandleWidth(6);
-    layout->addWidget(splitter);
+    m_splitter = new QSplitter(Qt::Horizontal, central);
+    m_splitter->setChildrenCollapsible(true);
+    m_splitter->setHandleWidth(6);
+    layout->addWidget(m_splitter);
     setCentralWidget(central);
 
-    auto* treePanel = new QWidget(splitter);
+    auto* treePanel = new QWidget(m_splitter);
     treePanel->setMinimumWidth(0);
     auto* treeLayout = new QVBoxLayout(treePanel);
     treeLayout->setContentsMargins(0, 0, 0, 0);
@@ -271,16 +297,18 @@ void MainWindow::buildUi()
     m_tree->setColumnWidth(2, 170);
     m_tree->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     m_tree->setUniformRowHeights(true);
+    // 支持多选，配合批量操作（Ctrl/Shift 多选，或按住框选）。
+    m_tree->setSelectionMode(QAbstractItemView::ExtendedSelection);
     treeLayout->addWidget(m_tree);
-    splitter->addWidget(treePanel);
+    m_splitter->addWidget(treePanel);
 
-    m_view = new SpeciesViewForm(splitter);
+    m_view = new SpeciesViewForm(m_splitter);
     m_view->setDocument(m_document);
     m_view->setDataDir(m_dataDir);
-    splitter->addWidget(m_view);
-    splitter->setStretchFactor(0, 3);
-    splitter->setStretchFactor(1, 5);
-    splitter->setSizes({ 420, 900 });
+    m_splitter->addWidget(m_view);
+    m_splitter->setStretchFactor(0, 3);
+    m_splitter->setStretchFactor(1, 5);
+    m_splitter->setSizes({ 420, 900 });
 
     connect(m_tree, &QTreeWidget::currentItemChanged,
             this, &MainWindow::onTreeSelectionChanged);
@@ -408,6 +436,22 @@ void MainWindow::onSearchTextChanged(const QString& text)
     m_renameAction->setEnabled(false);
     m_deleteAction->setEnabled(false);
     m_view->setEditEnabled(false);
+
+    // 防抖：输入停顿 200ms 后再真正执行搜索，避免每敲一个字符都全量遍历。
+    m_pendingSearchText = query;
+    if (!m_searchDebounceTimer) {
+        m_searchDebounceTimer = new QTimer(this);
+        m_searchDebounceTimer->setSingleShot(true);
+        m_searchDebounceTimer->setInterval(200);
+        connect(m_searchDebounceTimer, &QTimer::timeout,
+                this, &MainWindow::runSearchDebounced);
+    }
+    m_searchDebounceTimer->start();
+}
+
+void MainWindow::runSearchDebounced()
+{
+    const QString query = m_pendingSearchText;
 
     m_searchResults->clear();
     const QString normalizedQuery =
@@ -1099,6 +1143,35 @@ void MainWindow::openAdvancedSearch()
     dialog.exec();
 }
 
+void MainWindow::openStats()
+{
+    StatsDialog dialog(m_document, this);
+    dialog.exec();
+}
+
+void MainWindow::openCompare()
+{
+    QList<int> ids = selectedNodeIds();
+    // 只保留能承载资料的节点。
+    QList<int> plantIds;
+    for (int id : ids) {
+        const TaxonNode* n = m_document->node(id);
+        if (n && TaxonRanks::canHostPlantInfo(n->rank))
+            plantIds.append(id);
+    }
+
+    if (plantIds.isEmpty()) {
+        QMessageBox::information(
+            this, QStringLiteral("物种对比"),
+            QStringLiteral("请先在左侧分类树中多选 2~5 个植物（种/亚种等）"
+                           "（按住 Ctrl 或 Shift 点选），再点“对比”。"));
+        return;
+    }
+
+    CompareDialog dialog(m_document, plantIds, this);
+    dialog.exec();
+}
+
 void MainWindow::openSpeciesEditor()
 {
     const int id = selectedNodeId();
@@ -1143,6 +1216,17 @@ int MainWindow::selectedNodeId() const
 {
     QTreeWidgetItem* item = m_tree->currentItem();
     return item ? item->data(0, NodeIdRole).toInt() : 0;
+}
+
+QList<int> MainWindow::selectedNodeIds() const
+{
+    QList<int> ids;
+    for (QTreeWidgetItem* item : m_tree->selectedItems()) {
+        const int id = item->data(0, NodeIdRole).toInt();
+        if (id > 0 && !ids.contains(id))
+            ids.append(id);
+    }
+    return ids;
 }
 
 void MainWindow::refreshActionState()
@@ -1396,6 +1480,189 @@ void MainWindow::removeSelected()
     removeSubtreeAndPhotos(id);
 }
 
+void MainWindow::batchDelete()
+{
+    const QList<int> ids = selectedNodeIds();
+    if (ids.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("批量删除"),
+                                 QStringLiteral("请先在左侧分类树中多选要删除的节点"
+                                                "（按住 Ctrl 或 Shift 点选）。"));
+        return;
+    }
+
+    // 若选中节点存在父子关系，只保留“最上层”节点，避免重复删除子树。
+    QSet<int> idSet(ids.begin(), ids.end());
+    QList<int> topIds;
+    for (int id : ids) {
+        const TaxonNode* n = m_document->node(id);
+        if (!n)
+            continue;
+        // 向上检查祖先是否也在选中集合里。
+        bool ancestorSelected = false;
+        const TaxonNode* p = m_document->parent(id);
+        while (p) {
+            if (idSet.contains(p->id)) {
+                ancestorSelected = true;
+                break;
+            }
+            p = m_document->parent(p->id);
+        }
+        if (!ancestorSelected)
+            topIds.append(id);
+    }
+
+    if (topIds.isEmpty())
+        return;
+
+    const QString question = QStringLiteral(
+        "确定删除选中的 %1 个节点吗？\n\n"
+        "将级联删除这些节点下的所有子节点，"
+        "相关物种资料与不再被引用的照片也会一并清理。\n"
+        "此操作可通过“撤销”逐步恢复。").arg(topIds.size());
+    if (QMessageBox::question(this, QStringLiteral("确认批量删除"), question)
+        != QMessageBox::Yes)
+        return;
+
+    for (int id : topIds)
+        removeSubtreeAndPhotos(id);
+
+    rebuildTree();
+    refreshActionState();
+    saveData();
+    setStatus(QStringLiteral("已批量删除 %1 个节点。").arg(topIds.size()));
+}
+
+void MainWindow::batchSetAttribute()
+{
+    // 只对“种/亚种/变种/变型/品种”这类能承载资料的节点批量设置属性。
+    QList<int> plantIds;
+    for (int id : selectedNodeIds()) {
+        const TaxonNode* n = m_document->node(id);
+        if (n && TaxonRanks::canHostPlantInfo(n->rank))
+            plantIds.append(id);
+    }
+    if (plantIds.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("批量设置属性"),
+                                 QStringLiteral("请先多选“种 / 亚种”等可承载资料的植物节点。"));
+        return;
+    }
+
+    // 用一个简单对话框让用户选“属性 + 值”。
+    QDialog dialog(this);
+    dialog.setWindowTitle(QStringLiteral("批量设置属性"));
+    dialog.resize(420, 200);
+    auto* layout = new QVBoxLayout(&dialog);
+
+    auto* form = new QFormLayout;
+    auto* attrCombo = new QComboBox(&dialog);
+    attrCombo->addItem(QStringLiteral("生长习性"), QStringLiteral("habit"));
+    attrCombo->addItem(QStringLiteral("光照"), QStringLiteral("light"));
+    attrCombo->addItem(QStringLiteral("水分"), QStringLiteral("water"));
+    attrCombo->addItem(QStringLiteral("生命周期"), QStringLiteral("lifecycle"));
+    attrCombo->addItem(QStringLiteral("叶型"), QStringLiteral("foliage"));
+    attrCombo->addItem(QStringLiteral("生长速度"), QStringLiteral("growth_rate"));
+    attrCombo->addItem(QStringLiteral("生境"), QStringLiteral("habitat"));
+    form->addRow(QStringLiteral("要设置的属性："), attrCombo);
+
+    auto* valueCombo = new QComboBox(&dialog);
+    form->addRow(QStringLiteral("设置为："), valueCombo);
+    layout->addLayout(form);
+
+    // 属性切换时，动态更新“值”下拉框的候选项。
+    auto updateValueOptions = [&]() {
+        const QString key = attrCombo->currentData().toString();
+        valueCombo->clear();
+        if (key == QLatin1String("habit")) {
+            for (auto v : { GrowthHabit::Tree, GrowthHabit::Shrub, GrowthHabit::Herb,
+                            GrowthHabit::Vine, GrowthHabit::Aquatic, GrowthHabit::Succulent,
+                            GrowthHabit::Fern, GrowthHabit::Other })
+                valueCombo->addItem(habitLabel(v), habitToKey(v));
+        } else if (key == QLatin1String("light")) {
+            for (auto v : { LightPreference::FullSun, LightPreference::HalfSun,
+                            LightPreference::HalfShade, LightPreference::Shade })
+                valueCombo->addItem(lightLabel(v), lightToKey(v));
+        } else if (key == QLatin1String("water")) {
+            for (auto v : { WaterPreference::Dry, WaterPreference::Moderate,
+                            WaterPreference::Moist, WaterPreference::Aquatic })
+                valueCombo->addItem(waterLabel(v), waterToKey(v));
+        } else if (key == QLatin1String("lifecycle")) {
+            for (auto v : { LifeCycle::Annual, LifeCycle::Biennial, LifeCycle::Perennial })
+                valueCombo->addItem(lifecycleLabel(v), lifecycleToKey(v));
+        } else if (key == QLatin1String("foliage")) {
+            for (auto v : { FoliageType::Evergreen, FoliageType::SemiEvergreen,
+                            FoliageType::Deciduous })
+                valueCombo->addItem(foliageLabel(v), foliageToKey(v));
+        } else if (key == QLatin1String("growth_rate")) {
+            for (auto v : { GrowthRate::Slow, GrowthRate::Medium, GrowthRate::Fast })
+                valueCombo->addItem(growthRateLabel(v), growthRateToKey(v));
+        } else if (key == QLatin1String("habitat")) {
+            // 生境是自由文本，用可编辑下拉框。
+            valueCombo->setEditable(true);
+            valueCombo->setInsertPolicy(QComboBox::NoInsert);
+        }
+    };
+    connect(attrCombo, &QComboBox::currentIndexChanged, &dialog, updateValueOptions);
+    updateValueOptions();
+
+    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel,
+                                         &dialog);
+    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("应用到所选 %1 个植物")
+                                                       .arg(plantIds.size()));
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+
+    if (dialog.exec() != QDialog::Accepted)
+        return;
+
+    const QString key = attrCombo->currentData().toString();
+    const QString value = valueCombo->currentData().toString();
+
+    int applied = 0;
+    for (int id : plantIds) {
+        const TaxonNode* n = m_document->node(id);
+        if (!n || !n->hasInfo)
+            continue;
+
+        SpeciesInfo info = n->info;
+        if (key == QLatin1String("habit"))
+            info.habit = habitFromKey(value);
+        else if (key == QLatin1String("light"))
+            info.light = lightFromKey(value);
+        else if (key == QLatin1String("water"))
+            info.water = waterFromKey(value);
+        else if (key == QLatin1String("lifecycle"))
+            info.lifeCycle = lifecycleFromKey(value);
+        else if (key == QLatin1String("foliage"))
+            info.foliage = foliageFromKey(value);
+        else if (key == QLatin1String("growth_rate"))
+            info.growthRate = growthRateFromKey(value);
+        else if (key == QLatin1String("habitat"))
+            info.habitat = valueCombo->currentText().trimmed();
+
+        // 记录撤销命令（每个节点一条，可逐个撤销）。
+        UndoCommand cmd;
+        cmd.type = UndoCommand::SetInfo;
+        cmd.nodeId = id;
+        cmd.oldInfo = n->info;
+        cmd.hadOldInfo = true;
+        cmd.newInfo = info;
+        cmd.hadNewInfo = true;
+
+        QString error;
+        if (m_document->setInfo(id, info, &error)) {
+            m_undoManager.push(cmd);
+            ++applied;
+        }
+    }
+
+    rebuildTree();
+    m_view->showNode(selectedNodeId());
+    refreshActionState();
+    saveData();
+    setStatus(QStringLiteral("已对 %1 个植物批量设置属性。").arg(applied));
+}
+
 bool MainWindow::saveData()
 {
     if (!m_document || m_document->isEmpty())
@@ -1510,6 +1777,39 @@ void MainWindow::exportCopy()
                              QStringLiteral("副本已导出到：\n%1").arg(dest));
 }
 
+void MainWindow::exportCsv()
+{
+    QString csv;
+    QString error;
+    if (!CsvExport::generate(*m_document, &csv, &error)) {
+        showError(QStringLiteral("导出失败"), error);
+        return;
+    }
+
+    const QString defaultName = QDir(m_dataDir).filePath(
+        QStringLiteral("plantmap_导出_%1.csv").arg(
+            QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_hhmmss"))));
+    const QString filePath = QFileDialog::getSaveFileName(
+        this, QStringLiteral("导出 CSV"),
+        defaultName, QStringLiteral("CSV 文件 (*.csv)"));
+    if (filePath.isEmpty())
+        return;
+
+    QFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        showError(QStringLiteral("导出失败"),
+                  QStringLiteral("无法写入文件：%1").arg(file.errorString()));
+        return;
+    }
+    file.write(csv.toUtf8());
+    file.close();
+
+    QMessageBox::information(this, QStringLiteral("导出完成"),
+                             QStringLiteral("已导出 %1 条植物资料到：\n%2")
+                                 .arg(QString::number(m_document->infoCount()))
+                                 .arg(filePath));
+}
+
 void MainWindow::expandAllTree()
 {
     m_tree->expandAll();
@@ -1620,7 +1920,29 @@ void MainWindow::closeEvent(QCloseEvent* event)
         event->ignore();
         return;
     }
+    saveUiState();
     event->accept();
+}
+
+void MainWindow::restoreUiState()
+{
+    QSettings settings;
+    const QByteArray geometry =
+        settings.value(QStringLiteral("ui/geometry")).toByteArray();
+    if (!geometry.isEmpty())
+        restoreGeometry(geometry);
+    const QByteArray splitterState =
+        settings.value(QStringLiteral("ui/splitter")).toByteArray();
+    if (!splitterState.isEmpty() && m_splitter)
+        m_splitter->restoreState(splitterState);
+}
+
+void MainWindow::saveUiState()
+{
+    QSettings settings;
+    settings.setValue(QStringLiteral("ui/geometry"), saveGeometry());
+    if (m_splitter)
+        settings.setValue(QStringLiteral("ui/splitter"), m_splitter->saveState());
 }
 
 void MainWindow::showError(const QString& title, const QString& message)
