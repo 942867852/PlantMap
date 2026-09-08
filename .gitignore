@@ -1,7 +1,10 @@
 build*/
-bin/
-data/*.json
-data/photos/
+bin/*
+!bin/data/
+!bin/data/plantmap.json
+!bin/data/photos/
+!bin/data/photos/**
+bin/data/backups/
 *.user
 *.rar
 .qtcreator/
