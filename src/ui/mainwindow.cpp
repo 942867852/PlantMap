@@ -3,6 +3,7 @@
 #include "dbversion.h"
 #include "photoimageutils.h"
 #include "pinyin.h"
+#include "specieseditdialog.h"
 #include "speciesform.h"
 #include "wheelignorefilter.h"
 
@@ -79,145 +80,18 @@ bool copyPhotoFiles(const QDir& source, const QDir& destination,
     return true;
 }
 
-// 资料编辑窗口：点右上角 X 或“取消”时，若有未保存改动则先询问。
-class SpeciesEditDialog : public QDialog
-{
-public:
-    SpeciesEditDialog(TaxonomyDocument* document,
-                      const QString& dataDir,
-                      int nodeId,
-                      QWidget* parent = nullptr)
-        : QDialog(parent)
-    {
-        m_document = document;
-        m_dataDir = dataDir;
-        m_nodeId = nodeId;
-
-        const TaxonNode* n = document->node(nodeId);
-        m_originalHasInfo = n && n->hasInfo;
-        if (m_originalHasInfo)
-            m_originalInfo = n->info;
-
-        setWindowTitle(QStringLiteral("编辑资料：%1（%2）")
-                           .arg(n ? n->name : QString(),
-                                n ? TaxonRanks::displayName(n->rank)
-                                  : QString()));
-        resize(760, 780);
-
-        auto* layout = new QVBoxLayout(this);
-        m_form = new SpeciesForm(this);
-        m_form->setDocument(document);
-        m_form->setDataDir(dataDir);
-        m_form->showNode(nodeId);
-        layout->addWidget(m_form);
-
-        auto* buttons = new QDialogButtonBox(QDialogButtonBox::Save
-                                                 | QDialogButtonBox::Cancel,
-                                             this);
-        QPushButton* saveButton = buttons->button(QDialogButtonBox::Save);
-        saveButton->setText(QStringLiteral("保存并关闭"));
-        buttons->button(QDialogButtonBox::Cancel)
-            ->setText(QStringLiteral("取消"));
-        connect(saveButton, &QPushButton::clicked, this, [this] {
-            if (m_form->requestSave())
-                accept();
-        });
-        connect(buttons->button(QDialogButtonBox::Cancel),
-                &QPushButton::clicked, this, &QDialog::reject);
-        layout->addWidget(buttons);
-    }
-
-protected:
-    void reject() override
-    {
-        if (hasDiscardableChanges()) {
-            const QMessageBox::StandardButton answer =
-                QMessageBox::warning(
-                    this, QStringLiteral("有未保存的修改"),
-                    QStringLiteral("当前编辑的内容或照片操作还没有保存。\n\n"
-                                   "确定要放弃本次所有修改并关闭吗？"
-                                   "（新添加的照片也会被删除）"),
-                    QMessageBox::Yes | QMessageBox::No,
-                    QMessageBox::No);
-            if (answer != QMessageBox::Yes)
-                return;
-
-            QString error;
-            if (!rollback(&error)) {
-                QMessageBox::critical(
-                    this, QStringLiteral("无法还原"),
-                    QStringLiteral("还原失败，为避免数据丢失窗口不会关闭。\n\n%1")
-                        .arg(error));
-                return;
-            }
-        }
-
-        // 即使当前表单与数据库一致（例如“添加后又移除”了某张照片），
-        // 本会话复制进 photos/ 的文件也不能留下，否则会成为孤儿文件。
-        //
-        // 说明本清理与“保存成功”互斥，不会误删在用的照片：
-        //   - 保存成功走 requestSave() -> accept()，此时
-        //     sessionCopiedPhotoFiles() 已缩小为“仍被引用”的集合，
-        //     但窗口直接关闭，不会再进入本 reject()。
-        //   - 只有真正放弃修改时才会走到这里，此刻 session 里残留的
-        //     都是“复制了但最终没被资料引用”的文件，删掉是安全的。
-        QStringList failedToRemove;
-        for (const QString& relativeName
-             : m_form->sessionCopiedPhotoFiles()) {
-            const QString fullPath = QDir(m_dataDir).filePath(
-                QStringLiteral("photos") + QLatin1Char('/') + relativeName);
-            if (QFile::exists(fullPath) && !QFile::remove(fullPath))
-                failedToRemove.append(relativeName);
-        }
-        if (!failedToRemove.isEmpty()) {
-            QMessageBox::warning(
-                this, QStringLiteral("部分照片文件未能删除"),
-                QStringLiteral("以下照片文件可能正被占用，无法删除：\n\n%1")
-                    .arg(failedToRemove.join(QLatin1Char('\n'))));
-        }
-        QDialog::reject();
-    }
-
-private:
-    bool hasDiscardableChanges() const
-    {
-        if (m_form->hasUnsavedChanges())
-            return true;
-
-        const TaxonNode* n = m_document->node(m_nodeId);
-        const bool currentHasInfo = n && n->hasInfo;
-        if (currentHasInfo != m_originalHasInfo)
-            return true;
-
-        const SpeciesInfo currentInfo =
-            currentHasInfo ? n->info : SpeciesInfo();
-        return !(currentInfo == m_originalInfo);
-    }
-
-    bool rollback(QString* error)
-    {
-        if (m_originalHasInfo) {
-            return m_document->setInfo(m_nodeId, m_originalInfo, error);
-        }
-        return m_document->clearInfo(m_nodeId, error);
-    }
-
-    TaxonomyDocument* m_document = nullptr;
-    QString m_dataDir;
-    int m_nodeId = 0;
-    bool m_originalHasInfo = false;
-    SpeciesInfo m_originalInfo;
-    SpeciesForm* m_form = nullptr;
-};
-
 } // namespace
 
 MainWindow::MainWindow(const QString& dataDir, QWidget* parent)
     : QMainWindow(parent)
     , m_dataDir(dataDir)
+    , m_favorites(dataDir)
 {
     m_dataFile = QDir(dataDir).filePath(QStringLiteral("plantmap.json"));
     m_document = new TaxonomyDocument;
+    m_favorites.setDocument(m_document);
+    m_undoManager.setDocument(m_document);
+    m_undoManager.setDataDir(m_dataDir);
 
     QDir().mkpath(m_dataDir);
     if (QFile::exists(m_dataFile)) {
@@ -245,7 +119,7 @@ MainWindow::MainWindow(const QString& dataDir, QWidget* parent)
     }
 
     buildUi();
-    loadFavorites();
+    m_favorites.load();
     rebuildTree();
     selectFirstPlantItem();
     refreshActionState();
@@ -863,8 +737,7 @@ void MainWindow::importDatabase()
 
         m_searchEdit->clear();
         m_searchThumbCache.clear();
-        m_undoStack.clear();
-        m_redoStack.clear();
+        m_undoManager.clear();
         rebuildTree();
         selectFirstPlantItem();
         refreshActionState();
@@ -888,8 +761,7 @@ void MainWindow::importDatabase()
     m_searchEdit->clear();
     m_searchThumbCache.clear();
     m_loadFailed = false;
-    m_undoStack.clear();
-    m_redoStack.clear();
+    m_undoManager.clear();
     rebuildTree();
     selectFirstPlantItem();
     refreshActionState();
@@ -1257,7 +1129,7 @@ void MainWindow::openSpeciesEditor()
         cmd.hadOldInfo = hadOld;
         cmd.newInfo = newInfo;
         cmd.hadNewInfo = hadNew;
-        pushUndo(cmd);
+        m_undoManager.push(cmd);
     }
 
     // 编辑器只在“保存”时写文档，取消不会改动数据；
@@ -1373,7 +1245,7 @@ void MainWindow::addUnderSelected()
     cmd.nodeId = newId;
     cmd.parentId = parentId;
     cmd.subtree = m_document->subtreeToJson(newId);
-    pushUndo(cmd);
+    m_undoManager.push(cmd);
 
     rebuildTree(newId);
     m_view->showNode(newId);
@@ -1406,7 +1278,7 @@ void MainWindow::renameSelected()
     cmd.nodeId = id;
     cmd.oldName = n->name;
     cmd.newName = newName;
-    pushUndo(cmd);
+    m_undoManager.push(cmd);
 
     rebuildTree(id);
     m_view->showNode(id);
@@ -1474,7 +1346,7 @@ void MainWindow::removeSubtreeAndPhotos(int id)
         showError(QStringLiteral("删除失败"), error);
         return;
     }
-    pushUndo(cmd);
+    m_undoManager.push(cmd);
 
     const QSet<QString> stillReferenced = collectAllReferencedPhotos();
     QStringList removed;
@@ -1651,98 +1523,16 @@ void MainWindow::collapseAllTree()
 void MainWindow::refreshUndoActions()
 {
     if (m_undoAction)
-        m_undoAction->setEnabled(!m_undoStack.isEmpty());
+        m_undoAction->setEnabled(m_undoManager.canUndo());
     if (m_redoAction)
-        m_redoAction->setEnabled(!m_redoStack.isEmpty());
-}
-
-void MainWindow::pushUndo(const UndoCommand& command)
-{
-    m_undoStack.append(command);
-    m_redoStack.clear();
-    if (m_undoStack.size() > 100)
-        m_undoStack.removeFirst();
-    refreshUndoActions();
-}
-
-// 执行一个命令（inverse=false 为撤销方向，true 为重做方向）。
-// 返回命令涉及的节点新 id（Add/Remove 会重建节点，id 可能变化）。
-int MainWindow::applyUndoCommand(const UndoCommand& c, bool inverse)
-{
-    switch (c.type) {
-    case UndoCommand::AddNode:
-        if (!inverse) {
-            m_document->removeNode(c.nodeId);
-            return 0;
-        }
-        return m_document->restoreSubtreeFromJson(c.subtree, c.parentId);
-
-    case UndoCommand::RemoveNode:
-        if (!inverse) {
-            const int newId = m_document->restoreSubtreeFromJson(c.subtree, c.parentId);
-            // 恢复被删的照片文件。
-            const QDir photosDir(QDir(m_dataDir).filePath(QStringLiteral("photos")));
-            QDir().mkpath(photosDir.absolutePath());
-            for (auto it = c.photos.constBegin(); it != c.photos.constEnd(); ++it) {
-                const QString path = photosDir.filePath(it.key());
-                if (!QFile::exists(path)) {
-                    QFile f(path);
-                    if (f.open(QIODevice::WriteOnly)) {
-                        f.write(it.value());
-                        f.close();
-                    }
-                }
-            }
-            return newId;
-        } else {
-            // 重做删除：删除当前子树，并清理不再被引用的照片。
-            const QSet<QString> subPhotos = collectSubtreePhotos(c.nodeId);
-            m_document->removeNode(c.nodeId);
-            const QSet<QString> still = collectAllReferencedPhotos();
-            const QDir photosDir(QDir(m_dataDir).filePath(QStringLiteral("photos")));
-            for (const QString& fn : subPhotos) {
-                if (!still.contains(fn)) {
-                    const QString path = photosDir.filePath(fn);
-                    if (QFile::exists(path))
-                        QFile::remove(path);
-                }
-            }
-            return 0;
-        }
-
-    case UndoCommand::RenameNode:
-        if (!inverse)
-            m_document->renameNode(c.nodeId, c.oldName);
-        else
-            m_document->renameNode(c.nodeId, c.newName);
-        return c.nodeId;
-
-    case UndoCommand::SetInfo:
-        if (!inverse) {
-            if (c.hadOldInfo)
-                m_document->setInfo(c.nodeId, c.oldInfo);
-            else
-                m_document->clearInfo(c.nodeId);
-        } else {
-            if (c.hadNewInfo)
-                m_document->setInfo(c.nodeId, c.newInfo);
-            else
-                m_document->clearInfo(c.nodeId);
-        }
-        return c.nodeId;
-    }
-    return 0;
+        m_redoAction->setEnabled(m_undoManager.canRedo());
 }
 
 void MainWindow::undo()
 {
-    if (m_undoStack.isEmpty())
+    const int newId = m_undoManager.undo();
+    if (newId < 0)
         return;
-    UndoCommand c = m_undoStack.takeLast();
-    const int newId = applyUndoCommand(c, false);
-    if (c.type == UndoCommand::AddNode || c.type == UndoCommand::RemoveNode)
-        c.nodeId = newId;
-    m_redoStack.append(c);
     rebuildTree();
     m_view->showNode(newId > 0 ? newId : 0);
     refreshActionState();
@@ -1751,13 +1541,9 @@ void MainWindow::undo()
 
 void MainWindow::redo()
 {
-    if (m_redoStack.isEmpty())
+    const int newId = m_undoManager.redo();
+    if (newId < 0)
         return;
-    UndoCommand c = m_redoStack.takeLast();
-    const int newId = applyUndoCommand(c, true);
-    if (c.type == UndoCommand::AddNode || c.type == UndoCommand::RemoveNode)
-        c.nodeId = newId;
-    m_undoStack.append(c);
     rebuildTree();
     m_view->showNode(newId > 0 ? newId : 0);
     refreshActionState();
@@ -1770,50 +1556,11 @@ void MainWindow::openDataDir()
     QDesktopServices::openUrl(QUrl::fromLocalFile(m_dataDir));
 }
 
-void MainWindow::loadFavorites()
-{
-    m_favorites.clear();
-    const QString path = QDir(m_dataDir).filePath(QStringLiteral("favorites.json"));
-    QFile file(path);
-    if (!file.open(QIODevice::ReadOnly))
-        return;
-    const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
-    file.close();
-    const QJsonArray arr = doc.array();
-    for (const auto& value : arr) {
-        const int id = value.toInt();
-        const TaxonNode* n = id > 0 ? m_document->node(id) : nullptr;
-        if (n && TaxonRanks::canHostPlantInfo(n->rank))
-            m_favorites.insert(id);
-    }
-}
-
-void MainWindow::saveFavorites()
-{
-    QJsonArray arr;
-    QList<int> ids = m_favorites.values();
-    std::sort(ids.begin(), ids.end());
-    for (int id : ids)
-        arr.append(id);
-
-    const QString path = QDir(m_dataDir).filePath(QStringLiteral("favorites.json"));
-    QFile file(path);
-    if (!file.open(QIODevice::WriteOnly))
-        return;
-    file.write(QJsonDocument(arr).toJson());
-    file.close();
-}
-
 void MainWindow::toggleFavorite(int nodeId)
 {
-    if (nodeId <= 0)
-        return;
-    if (m_favorites.contains(nodeId))
-        m_favorites.remove(nodeId);
-    else
-        m_favorites.insert(nodeId);
-    m_view->setFavorite(m_favorites.contains(nodeId));
-    saveFavorites();
+    const bool nowFavorite = m_favorites.toggle(nodeId);
+    m_view->setFavorite(nowFavorite);
+    m_favorites.save();
 }
 
 void MainWindow::openFavorites()
@@ -1827,8 +1574,7 @@ void MainWindow::openFavorites()
     list->setIconSize(QSize(40, 40));
     layout->addWidget(list, 1);
 
-    QList<int> ids = m_favorites.values();
-    std::sort(ids.begin(), ids.end());
+    const QList<int> ids = m_favorites.ids();
     for (int id : ids) {
         const TaxonNode* n = m_document->node(id);
         if (!n)

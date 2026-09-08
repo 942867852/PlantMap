@@ -44,6 +44,8 @@ public:
     int currentNodeId() const { return m_nodeId; }
     // 本次编辑会话中新复制到 photos/ 的文件（用于取消/保存时清理孤儿文件）。
     QStringList sessionCopiedPhotoFiles() const;
+    // 删除当前节点的草稿文件（取消编辑时调用，避免残留过期草稿）。
+    void discardDraft();
 
 signals:
     void infoSaved();

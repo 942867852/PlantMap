@@ -1220,3 +1220,8 @@ void SpeciesForm::clearDraft()
     if (QFile::exists(path))
         QFile::remove(path);
 }
+
+void SpeciesForm::discardDraft()
+{
+    clearDraft();
+}

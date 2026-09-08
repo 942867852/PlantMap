@@ -44,6 +44,12 @@ qt_add_executable(PlantMap
     src/ui/speciesview.h
     src/ui/speciesform.cpp
     src/ui/speciesform.h
+    src/ui/specieseditdialog.cpp
+    src/ui/specieseditdialog.h
+    src/ui/favoritesstore.cpp
+    src/ui/favoritesstore.h
+    src/ui/undomanager.cpp
+    src/ui/undomanager.h
 )
 target_include_directories(PlantMap PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
